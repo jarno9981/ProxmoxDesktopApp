@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="EsxiApiHelper.DashboardEsxi"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:EsxiApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="VM Control Center - Dashboard ESXi">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.Resources>
+            <local:ConverterEsxi x:Key="StatusToColorConverterEsxi"/>
+        </Grid.Resources>
+
+        <NavigationView x:Name="NavViewEsxi" 
+                        PaneDisplayMode="Left"
+                        IsSettingsVisible="False"
+                        IsBackButtonVisible="Collapsed"
+                        OpenPaneLength="250"
+                        SelectionChanged="NavViewEsxi_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Icon="Home" Content="Dashboard" Tag="dashboard" />
+                <NavigationViewItem Icon="Add" Content="Create VM" Tag="create_vm" />
+                <NavigationViewItem Icon="Globe" Content="Network Config" Tag="network_config" />
+                <NavigationViewItem Icon="PostUpdate" Content="Server Stats" Tag="server_stats" />
+            </NavigationView.MenuItems>
+
+            <Grid>
+                <Grid x:Name="DashboardContentEsxi" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="VM Dashboard" Style="{StaticResource TitleTextBlockStyle}" Margin="24,24,24,12" />
+
+                    <Grid Grid.Row="1" Margin="24,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="2*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- VM List -->
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <ProgressRing x:Name="LoadingIndicatorEsxi" IsActive="False" Margin="0,0,0,12" />
+                            <Button x:Name="RefreshButtonEsxi" Content="Refresh"  Margin="0,0,0,12" />
+
+                            <ListView x:Name="VmListViewEsxi" Grid.Row="1" SelectionChanged="VmListViewEsxi_SelectionChanged" 
+          IsItemClickEnabled="True" ItemClick="VmListViewEsxi_ItemClick">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource BodyTextBlockStyle}" />
+                                                <TextBlock Text="{Binding Host}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" 
+                           Text="{Binding Status}" 
+                           Foreground="{Binding Status, Converter={StaticResource StatusToColorConverterEsxi}}" 
+                           VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+
+                        <!-- Separator -->
+                        <Rectangle Grid.Column="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,12" />
+
+                        <!-- VM Details and Actions -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="VM Details" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,12" />
+                            <TextBlock Grid.Row="1" x:Name="VmDetailsTextBlockEsxi" Text="Select a VM to view details" TextWrapping="Wrap" Margin="0,0,0,24" />
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="StartButtonEsxi" Content="Start"  />
+                                <Button x:Name="StopButtonEsxi" Content="Stop"  />
+                                <Button x:Name="ResetButtonEsxi" Content="Reset"  />
+                                <Button x:Name="ShutdownButtonEsxi" Content="Shutdown" />
+                                <Button x:Name="EditButtonEsxi" Content="Edit VM"  />
+                                <Button x:Name="ConsoleViewerEsxi" Content="View Console"  />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <InfoBar x:Name="StatusInfoBarEsxi"
+                             IsOpen="False"
+                             Severity="Informational"
+                             Grid.Row="2"
+                             Margin="24,12,24,24" />
+                </Grid>
+
+                <!-- Create VM Panel -->
+                <Grid x:Name="CreateVmPanelEsxi" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Create New VM" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,24" />
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="12">
+                            <TextBox x:Name="NewVmNameTextBoxEsxi" PlaceholderText="VM Name" />
+                            <NumberBox x:Name="NewVmCpuTextBoxEsxi" PlaceholderText="CPU Cores" SpinButtonPlacementMode="Compact" />
+                            <NumberBox x:Name="NewVmMemoryTextBoxEsxi" PlaceholderText="Memory (MB)" SpinButtonPlacementMode="Compact" />
+                            <NumberBox x:Name="NewVmDiskTextBoxEsxi" PlaceholderText="Disk Size (GB)" SpinButtonPlacementMode="Compact" />
+
+                            <ComboBox x:Name="HostSelectionComboBoxEsxi" PlaceholderText="Select Host" />
+                            <ComboBox x:Name="DatastoreSelectionComboBoxEsxi" PlaceholderText="Select Datastore" />
+                            <ComboBox x:Name="IsoSelectionComboBoxEsxi" PlaceholderText="Select ISO" />
+
+                            <ComboBox x:Name="OsTypeComboBoxEsxi" PlaceholderText="Select OS Type">
+                                <ComboBoxItem Content="Windows" />
+                                <ComboBoxItem Content="Linux" />
+                                <ComboBoxItem Content="Other" />
+                            </ComboBox>
+
+                            <ToggleSwitch x:Name="UefiCheckBoxEsxi" Header="Use UEFI" />
+
+                            <TextBlock Text="Network Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,12,0,0" />
+                            <ComboBox x:Name="NetworkAdapterComboBoxEsxi" PlaceholderText="Network Adapter">
+                                <ComboBoxItem Content="VMXNET3" />
+                                <ComboBoxItem Content="E1000" />
+                                <ComboBoxItem Content="E1000E" />
+                            </ComboBox>
+                            <TextBox x:Name="PortGroupTextBoxEsxi" PlaceholderText="Port Group" />
+
+                            <Button x:Name="CreateVmButtonEsxi" Content="Create VM" Click="CreateVmButtonEsxi_Click" Style="{StaticResource AccentButtonStyle}" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- Network Configuration Panel -->
+                <Grid x:Name="NetworkConfigPanelEsxi" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Network Configuration" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,24" />
+
+                    <InfoBar x:Name="StatusInfoBar2Esxi"
+                             Grid.Row="0"
+                             IsOpen="True"
+                             Severity="Warning"
+                             Margin="0,42,0,10" 
+                             Content="This Is In Alpha It Can Break Stuff"/>
+
+                    <StackPanel Grid.Row="1" Spacing="12">
+                        <ComboBox x:Name="NetworkInterfaceComboBoxEsxi" PlaceholderText="Select Network Interface" />
+                        <TextBox x:Name="IpAddressTextBoxEsxi" PlaceholderText="IP Address" />
+                        <TextBox x:Name="SubnetMaskTextBoxEsxi" PlaceholderText="Subnet Mask" />
+                        <TextBox x:Name="GatewayTextBoxEsxi" PlaceholderText="Gateway" />
+                        <Button x:Name="ConfigureNetworkButtonEsxi" Content="Configure Network" Click="ConfigureNetworkButtonEsxi_Click" Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Server Stats Panel -->
+                <Grid x:Name="ServerStatsPanelEsxi" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Server Statistics" Style="{StaticResource TitleLargeTextBlockStyle}" Margin="0,0,0,16" />
+
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl x:Name="ServerStatsItemsControlEsxi">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="local:ServerStatEsxi">
+                                    <Grid Margin="0,0,0,16" Padding="16">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="{x:Bind HostNameEsxi}" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
+                                            <Grid Grid.Row="1" Margin="0,0,0,8">
+                                                <ProgressBar Value="{x:Bind CpuUsageEsxi}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                                                <TextBlock Text="{x:Bind CpuUsageTextEsxi}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            </Grid>
+                                            <Grid Grid.Row="2">
+                                                <ProgressBar Value="{x:Bind MemoryUsageEsxi}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAltAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                                                <TextBlock Text="{x:Bind MemoryUsageTextEsxi}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>
+

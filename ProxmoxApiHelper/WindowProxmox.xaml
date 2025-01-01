@@ -1,0 +1,404 @@
+<Window
+    x:Class="ProxmoxApiHelper.WindowProxmox"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="VM Control Center - Dashboard Proxmox">
+
+
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid>
+        <Grid.Resources>
+            <local:StatusToColorConverterProxmox x:Key="StatusToColorConverterProxmox"/>
+        </Grid.Resources>
+        <NavigationView x:Name="NavViewProxmox" 
+                        PaneDisplayMode="Left"
+                        IsSettingsVisible="False"
+                        IsBackButtonVisible="Collapsed"
+                        OpenPaneLength="250"
+                        SelectionChanged="NavViewProxmox_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Icon="Home" Content="Dashboard" Tag="dashboard" />
+                <NavigationViewItem Icon="Add" Content="Create VM" Tag="create_vm" />
+                <NavigationViewItem Icon="Globe" Content="Network Config" Tag="network_config" />
+                <NavigationViewItem Icon="PostUpdate" Content="Server Stats" Tag="server_stats" />
+            </NavigationView.MenuItems>
+
+            <Grid>
+                <Grid x:Name="DashboardContentProxmox" Visibility="Visible">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="VM Dashboard" Style="{StaticResource TitleTextBlockStyle}" Margin="24,24,24,12" />
+
+                    <Grid Grid.Row="1" Margin="24,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
+                            <ColumnDefinition Width="24" />
+                            <ColumnDefinition Width="2*" />
+                        </Grid.ColumnDefinitions>
+
+                        <!-- VM List -->
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <ProgressRing x:Name="LoadingIndicatorProxmox" IsActive="False" />
+                                <Button x:Name="RefreshButtonProxmox" Content="Refresh" Click="RefreshButtonProxmox_Click" Margin="12,0,0,0" />
+                            </StackPanel>
+
+                            <ListView x:Name="VmListViewProxmox" Grid.Row="1" 
+                                      SelectionChanged="VmListViewProxmox_SelectionChanged" 
+                                      IsItemClickEnabled="True" 
+                                      ItemClick="VmListViewProxmox_ItemClick">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{Binding Name}" Style="{StaticResource BodyTextBlockStyle}" />
+                                                <TextBlock Text="{Binding Node}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" 
+                                                       Text="{Binding Status}" 
+                                                       Foreground="{Binding Status, Converter={StaticResource StatusToColorConverterProxmox}}" 
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+
+                        <!-- Separator -->
+                        <Rectangle Grid.Column="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,12" />
+
+                        <!-- VM Details and Actions -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="VM Details" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,12" />
+                            <TextBlock Grid.Row="1" x:Name="VmDetailsTextBlockProxmox" Text="Select a VM to view details" TextWrapping="Wrap" Margin="0,0,0,24" />
+
+                            <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="StartButtonProxmox" Content="Start" Click="StartButtonProxmox_Click" />
+                                <Button x:Name="StopButtonProxmox" Content="Stop" Click="StopButtonProxmox_Click" />
+                                <Button x:Name="ResetButtonProxmox" Content="Reset" Click="ResetButtonProxmox_Click" />
+                                <Button x:Name="ShutdownButtonProxmox" Content="Shutdown" Click="ShutdownButtonProxmox_Click" />
+                                <Button x:Name="EditButtonProxmox" Content="Edit VM" Click="EditButtonProxmox_Click" />
+                                <Button x:Name="ConsoleViewerProxmox" Content="View Console" Click="ConsoleViewerProxmox_Click" />
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+
+                    <InfoBar x:Name="StatusInfoBarProxmox"
+                             IsOpen="False"
+                             Severity="Informational"
+                             Grid.Row="2"
+                             Margin="24,12,24,24" />
+                </Grid>
+
+                <!-- Create VM Panel -->
+                <Grid x:Name="CreateVmPanelProxmox" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Create New VM" Style="{ThemeResource TitleTextBlockStyle}" Margin="0,0,0,24" />
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="* Required field" 
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                       Margin="0,0,0,8"/>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Basic Information" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <TextBox x:Name="NewVmIdTextBoxProxmox" Header="VM ID *" PlaceholderText="Enter a unique ID">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="A unique identifier for the virtual machine"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <TextBox x:Name="NewVmNameTextBoxProxmox" Header="VM Name *" PlaceholderText="Enter a unique name">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="A descriptive name for the virtual machine"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <ComboBox x:Name="NodeSelectionComboBoxProxmox" Header="Node *" PlaceholderText="Select Node" SelectionChanged="NodeSelectionComboBoxProxmox_SelectionChanged">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The physical server where the VM will be created"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <ComboBox x:Name="StorageSelectionComboBoxProxmox" Header="Storage *" PlaceholderText="Select Storage">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The storage location for the VM's disk"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="System Configuration" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <NumberBox x:Name="NewVmCpuTextBoxProxmox" Header="CPU Cores *" PlaceholderText="1" SpinButtonPlacementMode="Compact" Minimum="1">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Number of CPU cores allocated to the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </NumberBox>
+                                <NumberBox x:Name="NewVmMemoryTextBoxProxmox" Header="Memory (MB) *" PlaceholderText="512" SpinButtonPlacementMode="Compact" Minimum="512">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Amount of RAM allocated to the VM in megabytes"/>
+                                    </ToolTipService.ToolTip>
+                                </NumberBox>
+                                <NumberBox x:Name="NewVmDiskTextBoxProxmox" Header="Disk Size (GB) *" PlaceholderText="1" SpinButtonPlacementMode="Compact" Minimum="1">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Size of the VM's primary disk in gigabytes"/>
+                                    </ToolTipService.ToolTip>
+                                </NumberBox>
+                                <ComboBox x:Name="DriveTypeComboBoxProxmox" Header="Boot Disk" PlaceholderText="Select Boot Disk">
+                                    <ComboBoxItem Content="scsi0" />
+                                    <ComboBoxItem Content="virtio0" />
+                                    <ComboBoxItem Content="sata0" />
+                                    <ComboBoxItem Content="ide0" />
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The type of disk controller for the boot disk"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Operating System" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <ComboBox x:Name="OsTypeComboBoxProxmox" Header="OS Type *" PlaceholderText="Select OS Type" SelectionChanged="OsTypeComboBoxProxmox_SelectionChanged">
+                                    <ComboBoxItem Content="Windows" />
+                                    <ComboBoxItem Content="Linux" />
+                                    <ComboBoxItem Content="Other" />
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The type of operating system to be installed"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <ComboBox x:Name="OsType" Header="OS Version *" PlaceholderText="Select OS Version">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The specific version of the operating system"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <ComboBox x:Name="IsoSelectionComboBoxProxmox" Header="ISO Image" PlaceholderText="Select ISO (optional)">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The ISO image to be mounted for OS installation"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Advanced Options" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <CheckBox x:Name="UefiCheckBoxProxmox" Content="Use UEFI">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Enable UEFI boot instead of legacy BIOS"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                                <CheckBox x:Name="OnBootCheckBoxProxmox" Content="Start on boot">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Automatically start the VM when the host system boots"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                                <CheckBox x:Name="AgentCheckBoxProxmox" Content="Enable QEMU Guest Agent" IsChecked="True">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Enable the QEMU guest agent for better host-guest integration"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                                <CheckBox x:Name="AutoStartCheckBoxProxmox" Content="Auto start">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Automatically start the VM when it's created"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                                <CheckBox x:Name="ProtectionCheckBoxProxmox" Content="Enable Protection">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Prevent the VM from being removed accidentally"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                                <TextBox x:Name="SshKeysTextBoxProxmox" Header="SSH Keys" PlaceholderText="Enter SSH keys" AcceptsReturn="True" TextWrapping="Wrap" IsEnabled="False">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="SSH keys for secure access to the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <TextBox x:Name="TagsTextBoxProxmox" Header="Tags" PlaceholderText="Enter tags">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Tags for organizing and categorizing the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <TextBox x:Name="StartupOrderTextBoxProxmox" Header="Startup Order" PlaceholderText="Enter startup order">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Order in which the VM starts relative to other VMs"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Network Configuration" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <ComboBox x:Name="NetworkModelComboBoxProxmox" Header="Network Model *" PlaceholderText="Select Network Model">
+                                    <ComboBoxItem Content="VirtIO" />
+                                    <ComboBoxItem Content="E1000" />
+                                    <ComboBoxItem Content="RTL8139" />
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The type of network adapter for the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <TextBox x:Name="BridgeTextBoxProxmox" Header="Bridge *" PlaceholderText="Specify network bridge">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The network bridge to which the VM will be connected"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <TextBox x:Name="IpConfig0TextBoxProxmox" Header="IP Configuration" PlaceholderText="Specify IP configuration (optional)" IsEnabled="False">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Static IP configuration for the VM (if applicable)"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <CheckBox x:Name="FirewallCheckBoxProxmox" Content="Enable Firewall" IsChecked="True">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Enable the built-in firewall for the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Performance" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <NumberBox x:Name="NewVmCpuWeightTextBoxProxmox" Header="CPU Weight (cpuunits)" Value="1000" Minimum="1" Maximum="10000">
+                                    <NumberBox.Description>
+                                        Default: 1000. Changing this can affect VM performance.
+                                    </NumberBox.Description>
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Relative CPU priority compared to other VMs (1-10000)"/>
+                                    </ToolTipService.ToolTip>
+                                </NumberBox>
+                                <CheckBox x:Name="KvmCheckBoxProxmox" Content="Enable KVM" IsChecked="True">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Enable hardware virtualization for better performance"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
+                            </StackPanel>
+
+                            <TextBox x:Name="VmDescriptionTextBoxProxmox" Header="VM Description" PlaceholderText="Enter a description for the VM (optional)" AcceptsReturn="True" TextWrapping="Wrap" Height="100">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="A detailed description of the VM's purpose or configuration"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                                <Button x:Name="CreateVmButtonProxmox" Content="Create VM" Click="CreateVmButtonProxmox_Click" Style="{ThemeResource AccentButtonStyle}">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Create the virtual machine with the specified configuration"/>
+                                    </ToolTipService.ToolTip>
+                                </Button>
+                                <ProgressRing x:Name="CreateVmProgressRing" IsActive="False" Width="20" Height="20" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+
+
+                <!-- Network Configuration Panel -->
+                <Grid x:Name="NetworkConfigPanelProxmox" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Network Configuration" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,24" />
+
+                    <InfoBar x:Name="StatusInfoBar2Proxmox"
+                             Grid.Row="0"
+                             IsOpen="True"
+                             Severity="Warning"
+                             Margin="0,42,0,10" 
+                             Content="This Is In Alpha It Can Break Stuff"/>
+
+                    <StackPanel Grid.Row="1" Spacing="12">
+                        <ComboBox x:Name="NetworkInterfaceComboBoxProxmox" PlaceholderText="Select Network Interface" >
+                            <ToolTipService.ToolTip>
+                                <TextBlock Text="Select the network interface to configure"/>
+                            </ToolTipService.ToolTip>
+                        </ComboBox>
+                        <TextBox x:Name="IpAddressTextBoxProxmox" PlaceholderText="IP Address" >
+                            <ToolTipService.ToolTip>
+                                <TextBlock Text="Enter the IP address for the selected interface"/>
+                            </ToolTipService.ToolTip>
+                        </TextBox>
+                        <TextBox x:Name="SubnetMaskTextBoxProxmox" PlaceholderText="Subnet Mask" >
+                            <ToolTipService.ToolTip>
+                                <TextBlock Text="Enter the subnet mask for the selected interface"/>
+                            </ToolTipService.ToolTip>
+                        </TextBox>
+                        <TextBox x:Name="GatewayTextBoxProxmox" PlaceholderText="Gateway">
+                            <ToolTipService.ToolTip>
+                                <TextBlock Text="Enter the gateway address for the selected interface"/>
+                            </ToolTipService.ToolTip>
+                        </TextBox>
+                        <Button x:Name="ConfigureNetworkButtonProxmox" Content="Configure Network" Click="ConfigureNetworkButtonProxmox_Click" Style="{StaticResource AccentButtonStyle}" />
+                    </StackPanel>
+                </Grid>
+
+                <!-- Server Stats Panel -->
+                <Grid x:Name="ServerStatsPanelProxmox" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Server Statistics" Style="{StaticResource TitleLargeTextBlockStyle}" Margin="0,0,0,16" />
+
+                    <ScrollViewer Grid.Row="1">
+                        <ItemsControl x:Name="ServerStatsItemsControlProxmox">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="local:ServerStatProxmox">
+                                    <Grid Margin="0,0,0,16" Padding="16">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="{x:Bind HostName}" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
+                                            <Grid Grid.Row="1" Margin="0,0,0,8">
+                                                <ProgressBar Value="{x:Bind CpuUsage}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                                                <TextBlock Text="{x:Bind CpuUsageText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            </Grid>
+                                            <Grid Grid.Row="2">
+                                                <ProgressBar Value="{x:Bind MemoryUsage}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAltAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
+                                                <TextBlock Text="{x:Bind MemoryUsageText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            </Grid>
+                                        </Grid>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </NavigationView>
+    </Grid>
+</Window>
+

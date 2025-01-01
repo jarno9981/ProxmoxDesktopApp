@@ -1,0 +1,28 @@
+<Window
+    x:Class="ProxmoxApiHelper.VncViewerWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="VNC Viewer">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Margin="10">
+            <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click" Margin="0,0,10,0"/>
+            <Button x:Name="SendCtrlAltDelButton" Content="Send Ctrl+Alt+Del" Click="SendCtrlAltDelButton_Click"/>
+        </StackPanel>
+
+        <Image x:Name="VncImage" Grid.Row="1" Stretch="Uniform"/>
+
+        <TextBlock x:Name="StatusTextBlock" Grid.Row="2" Margin="10"/>
+    </Grid>
+</Window>
+

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "VmControllCenter (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "VmControllCenter (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

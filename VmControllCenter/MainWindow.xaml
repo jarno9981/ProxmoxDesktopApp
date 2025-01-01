@@ -1,0 +1,38 @@
+<Window
+    x:Class="VmControllCenter.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:VmControllCenter"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Login Vm Control Center"
+    Closed="Window_Closed">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+    
+    <Grid>
+        <Grid Padding="24" Margin="16" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <StackPanel>
+                <TextBlock Text="VM Control Center" Style="{ThemeResource TitleLargeTextBlockStyle}" HorizontalAlignment="Center" Margin="0,0,0,24"/>
+
+                <ComboBox x:Name="PlatformComboBox" Header="Select Platform" PlaceholderText="Choose platform" Margin="0,0,0,16" HorizontalAlignment="Stretch">
+                    <ComboBoxItem Content="Proxmox"/>
+                    <ComboBoxItem Content="ESXi"/>
+                </ComboBox>
+
+                <TextBox x:Name="UrlTextBox" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
+
+                <TextBox x:Name="UsernameTextBox" Header="Username" PlaceholderText="Enter username" Margin="0,0,0,16"/>
+
+                <PasswordBox x:Name="PasswordBox" Header="Password" PlaceholderText="Enter password" Margin="0,0,0,24"/>
+
+                <Button x:Name="LoginButton" Content="Login" Click="LoginButton_Click" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
+
+                <TextBlock x:Name="StatusTextBlock" Text="" Style="{ThemeResource BodyTextBlockStyle}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
