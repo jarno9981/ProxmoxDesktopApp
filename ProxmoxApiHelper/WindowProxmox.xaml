@@ -110,7 +110,7 @@
                                 <Button x:Name="ResetButtonProxmox" Content="Reset" Click="ResetButtonProxmox_Click" />
                                 <Button x:Name="ShutdownButtonProxmox" Content="Shutdown" Click="ShutdownButtonProxmox_Click" />
                                 <Button x:Name="EditButtonProxmox" Content="Edit VM" Click="EditButtonProxmox_Click" />
-                                <Button x:Name="ConsoleViewerProxmox" Content="View Console" Click="ConsoleViewerProxmox_Click" />
+                                <Button x:Name="ConsoleViewerProxmox" Visibility="Collapsed" IsEnabled="False" Content="View Console" Click="ConsoleViewerProxmox_Click" />
                             </StackPanel>
                         </Grid>
                     </Grid>

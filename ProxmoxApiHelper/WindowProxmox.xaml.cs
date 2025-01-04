@@ -132,7 +132,7 @@ namespace ProxmoxApiHelper
             ResetButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
             ShutdownButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
             EditButtonProxmox.IsEnabled = true;
-            ConsoleViewerProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
+            ConsoleViewerProxmox.IsEnabled = false;
         }
 
         private void DisableVmActionButtons()
@@ -220,9 +220,9 @@ namespace ProxmoxApiHelper
             {
                 try
                 {
-                   // var config = await _proxmoxClient.GetVmConfigAsync(_selectedVm.Node, _selectedVm.Id);
-                   // EditVmProxmox editVmWindow = new EditVmProxmox(_proxmoxClient, _selectedVm.Node, _selectedVm.Id, config);
-                    //editVmWindow.Activate();
+                   var config = await _proxmoxClient.GetVmConfigAsync(_selectedVm.Node, _selectedVm.Id);
+                   EditVmProxmox editVmWindow = new EditVmProxmox(_proxmoxClient, _selectedVm.Node, _selectedVm.Id);
+                   editVmWindow.Activate();
                 }
                 catch (Exception ex)
                 {
