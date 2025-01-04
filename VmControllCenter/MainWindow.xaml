@@ -18,12 +18,12 @@
             <StackPanel>
                 <TextBlock Text="VM Control Center" Style="{ThemeResource TitleLargeTextBlockStyle}" HorizontalAlignment="Center" Margin="0,0,0,24"/>
 
-                <ComboBox x:Name="PlatformComboBox" Header="Select Platform" PlaceholderText="Choose platform" Margin="0,0,0,16" HorizontalAlignment="Stretch">
+                <ComboBox x:Name="PlatformComboBox" SelectedItem="Proxmox" Header="Select Platform" PlaceholderText="Choose platform" Margin="0,0,0,16" HorizontalAlignment="Stretch">
                     <ComboBoxItem Content="Proxmox"/>
                     <ComboBoxItem Content="ESXi"/>
                 </ComboBox>
 
-                <TextBox x:Name="UrlTextBox" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
+                <TextBox x:Name="UrlTextBox" Text="https://ip-here:8006/" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
 
                 <TextBox x:Name="UsernameTextBox" Header="Username" PlaceholderText="Enter username" Margin="0,0,0,16"/>
 
