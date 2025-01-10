@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Linq;
 using System.IO;
+using ProxmoxApiHelper.Helpers;
 
 namespace ProxmoxApiHelper
 {
@@ -74,6 +75,8 @@ namespace ProxmoxApiHelper
         /// <summary>
         /// Authenticates with the Proxmox API and retrieves authentication tokens.
         /// </summary>
+        /// 
+
         private async Task AuthenticateAsync()
         {
             using var content = new FormUrlEncodedContent(new[]
@@ -498,16 +501,33 @@ namespace ProxmoxApiHelper
             return allNetworks;
         }
 
-        public async Task<List<Dictionary<string, object>>> GetUsersAsync()
-        {
-            var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync("/api2/json/access/users"));
-            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
-        }
+        
 
-        public async Task<List<Dictionary<string, object>>> GetGroupsAsync()
+        public async Task<List<string>> GetUsersAsync()
         {
-            var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync("/api2/json/access/groups"));
-            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync("/api2/json/access/users"));
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseBody);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var users = new List<string>();
+
+                foreach (var user in data.EnumerateArray())
+                {
+                    if (user.TryGetProperty("userid", out var userId))
+                    {
+                        users.Add(userId.GetString());
+                    }
+                }
+
+                return users;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to retrieve users", ex);
+            }
         }
 
         public async Task<bool> UpdateVmConfigAsync(string node, string vmid, Dictionary<string, string> changes)
@@ -614,6 +634,250 @@ namespace ProxmoxApiHelper
             var response = await SendRequestWithRetryAsync(() =>
                 _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/status/shutdown", null));
             return response.IsSuccessStatusCode;
+        }
+
+        public async Task<Dictionary<string, object>> GetUserConfigAsync(string userId)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/access/users/{userId}"));
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseBody);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var userDict = new Dictionary<string, object>();
+                foreach (var property in data.EnumerateObject())
+                {
+                    // Special handling for boolean values
+                    if (property.Name == "enable")
+                    {
+                        userDict[property.Name] = property.Value.ValueKind == JsonValueKind.True;
+                    }
+                    else
+                    {
+                        userDict[property.Name] = property.Value.GetString() ?? "";
+                    }
+                }
+
+                return userDict;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to retrieve user {userId}", ex);
+            }
+        }
+
+        public async Task<bool> CreateUserAsync(string userid, UserConfig config)
+        {
+            if (string.IsNullOrEmpty(userid))
+                throw new ArgumentException("User ID cannot be empty", nameof(userid));
+
+            var parameters = new Dictionary<string, string>
+            {
+                ["userid"] = userid
+            };
+
+            AddUserConfigParameters(parameters, config);
+
+            var content = new FormUrlEncodedContent(parameters);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync("/api2/json/access/users", content));
+
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> UpdateUserAsync(string userid, UserConfig config)
+        {
+            if (string.IsNullOrEmpty(userid))
+                throw new ArgumentException("User ID cannot be empty", nameof(userid));
+
+            var parameters = new Dictionary<string, string>();
+            AddUserConfigParameters(parameters, config);
+
+            var content = new FormUrlEncodedContent(parameters);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync($"/api2/json/access/users/{userid}", content));
+
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteUserAsync(string userid)
+        {
+            if (string.IsNullOrEmpty(userid))
+                throw new ArgumentException("User ID cannot be empty", nameof(userid));
+
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/access/users/{userid}"));
+
+            return response.IsSuccessStatusCode;
+        }
+
+      
+        private void AddUserConfigParameters(Dictionary<string, string> parameters, UserConfig config)
+        {
+            if (config == null) return;
+
+            if (!string.IsNullOrEmpty(config.Comment))
+                parameters["comment"] = config.Comment;
+
+            if (!string.IsNullOrEmpty(config.Email))
+                parameters["email"] = config.Email;
+
+            if (config.Enable.HasValue)
+                parameters["enable"] = config.Enable.Value ? "1" : "0";
+
+            if (config.Expire.HasValue)
+                parameters["expire"] = config.Expire.Value.ToString();
+
+            if (!string.IsNullOrEmpty(config.Firstname))
+                parameters["firstname"] = config.Firstname;
+
+            if (config.Groups != null && config.Groups.Any())
+                parameters["groups"] = string.Join(",", config.Groups);
+
+            if (!string.IsNullOrEmpty(config.Keys))
+                parameters["keys"] = config.Keys;
+
+            if (!string.IsNullOrEmpty(config.Lastname))
+                parameters["lastname"] = config.Lastname;
+
+            if (!string.IsNullOrEmpty(config.Password))
+                parameters["password"] = config.Password;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetGroupsAsync()
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync("/api2/json/access/groups"));
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseBody);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var groups = new List<Dictionary<string, object>>();
+
+                foreach (var group in data.EnumerateArray())
+                {
+                    var groupDict = new Dictionary<string, object>();
+                    foreach (var property in group.EnumerateObject())
+                    {
+                        groupDict[property.Name] = property.Value.GetString();
+                    }
+                    groups.Add(groupDict);
+                }
+
+                return groups;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Failed to retrieve groups", ex);
+            }
+        }
+
+        public async Task<Dictionary<string, object>> GetGroupAsync(string groupId)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentNullException(nameof(groupId), "Group ID cannot be null or empty.");
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/access/groups/{groupId}"));
+                var responseBody = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(responseBody);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var groupDict = new Dictionary<string, object>();
+                foreach (var property in data.EnumerateObject())
+                {
+                    groupDict[property.Name] = property.Value.GetString();
+                }
+
+                return groupDict;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to retrieve group {groupId}", ex);
+            }
+        }
+
+        public async Task<bool> CreateGroupAsync(string groupId, string comment = null)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentNullException(nameof(groupId), "Group ID cannot be null or empty.");
+            }
+
+            try
+            {
+                var parameters = new Dictionary<string, string>
+                {
+                    ["groupid"] = groupId
+                };
+
+                if (!string.IsNullOrEmpty(comment))
+                {
+                    parameters["comment"] = comment;
+                }
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() => _httpClient.PostAsync("/api2/json/access/groups", content));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to create group {groupId}", ex);
+            }
+        }
+
+        public async Task<bool> UpdateGroupAsync(string groupId, Dictionary<string, object> updatedGroupData)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentNullException(nameof(groupId), "Group ID cannot be null or empty.");
+            }
+
+            try
+            {
+                var parameters = new Dictionary<string, string>();
+
+                if (updatedGroupData.TryGetValue("comment", out var comment))
+                {
+                    parameters["comment"] = comment.ToString();
+                }
+
+                if (updatedGroupData.TryGetValue("members", out var members))
+                {
+                    parameters["users"] = members.ToString();
+                }
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() => _httpClient.PutAsync($"/api2/json/access/groups/{groupId}", content));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update group {groupId}", ex);
+            }
+        }
+
+        public async Task<bool> DeleteGroupAsync(string groupId)
+        {
+            if (string.IsNullOrEmpty(groupId))
+            {
+                throw new ArgumentNullException(nameof(groupId), "Group ID cannot be null or empty.");
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.DeleteAsync($"/api2/json/access/groups/{groupId}"));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to delete group {groupId}", ex);
+            }
         }
 
         public async Task<bool> ResetVmAsync(string node, string vmid)

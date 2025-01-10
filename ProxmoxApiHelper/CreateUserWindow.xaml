@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ProxmoxApiHelper.CreateUserWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Create New User">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Create New User" 
+                 Style="{StaticResource TitleTextBlockStyle}" 
+                 Margin="0,0,0,20"/>
+
+        <ScrollViewer Grid.Row="1" 
+                     VerticalScrollMode="Auto" 
+                     VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
+                <!-- Required Information -->
+                <StackPanel >
+                    <TextBlock Text="Required Information" 
+                             Style="{StaticResource SubtitleTextBlockStyle}" 
+                             Margin="0,0,0,8"/>
+
+                    <TextBox x:Name="UserIdTextBox" 
+                            Header="User ID (name@pve)"
+                            PlaceholderText="Enter username in name@pve format"
+                            Text="{x:Bind ViewModel.UserId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <PasswordBox x:Name="PasswordBox" 
+                               Header="Password"
+                               Password="{x:Bind ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+
+                <!-- Personal Information -->
+                <StackPanel >
+                    <TextBlock Text="Personal Information" 
+                             Style="{StaticResource SubtitleTextBlockStyle}" 
+                             Margin="0,0,0,8"/>
+
+                    <TextBox x:Name="FirstNameTextBox" 
+                            Header="First Name"
+                            Text="{x:Bind ViewModel.FirstName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox x:Name="LastNameTextBox" 
+                            Header="Last Name"
+                            Text="{x:Bind ViewModel.LastName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox x:Name="EmailTextBox" 
+                            Header="Email"
+                            PlaceholderText="Enter email address"
+                            Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+
+                <!-- Account Settings -->
+                <StackPanel >
+                    <TextBlock Text="Account Settings" 
+                             Style="{StaticResource SubtitleTextBlockStyle}" 
+                             Margin="0,0,0,8"/>
+
+                    <ToggleSwitch x:Name="EnableToggle" 
+                                 Header="Account Status"
+                                 OnContent="Enabled"
+                                 OffContent="Disabled"
+                                 IsOn="{x:Bind ViewModel.IsEnabled, Mode=TwoWay}"/>
+
+                    <CalendarDatePicker x:Name="ExpiryDatePicker" 
+                                      Header="Account Expiry Date"
+                                      Date="{x:Bind ViewModel.ExpiryDate, Mode=TwoWay}"/>
+                </StackPanel>
+
+                <!-- Groups -->
+                <StackPanel>
+                    <TextBlock Text="Group Membership" 
+               Style="{StaticResource SubtitleTextBlockStyle}" 
+               Margin="0,0,0,8"/>
+                    <ComboBox x:Name="GroupComboBox"
+              PlaceholderText="Select a group"
+              ItemsSource="{x:Bind ViewModel.AvailableGroups, Mode=OneWay}"
+              SelectedItem="{x:Bind ViewModel.SelectedGroup, Mode=TwoWay}"
+              HorizontalAlignment="Stretch"
+              Margin="0,0,0,16"/>
+                </StackPanel>
+
+                <!-- Additional Settings -->
+                <StackPanel >
+                    <TextBlock Text="Additional Settings" 
+                             Style="{StaticResource SubtitleTextBlockStyle}" 
+                             Margin="0,0,0,8"/>
+
+                    <TextBox x:Name="CommentTextBox" 
+                            Header="Comment"
+                            PlaceholderText="Add a comment about this user"
+                            TextWrapping="Wrap"
+                            AcceptsReturn="True"
+                            Height="60"
+                            Text="{x:Bind ViewModel.Comment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+                    <TextBox x:Name="KeysTextBox" 
+                            Header="Two Factor Auth Keys (Yubico)"
+                            PlaceholderText="Enter keys for two factor authentication"
+                            Text="{x:Bind ViewModel.Keys, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                </StackPanel>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Action Buttons -->
+        <StackPanel Grid.Row="2" 
+                    Orientation="Horizontal" 
+                    HorizontalAlignment="Right" 
+                    Spacing="8" 
+                    Margin="0,16,0,0">
+            <Button x:Name="CancelButton" 
+                    Content="Cancel"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="CancelButton_Click"/>
+
+            <Button x:Name="CreateButton" 
+                    Content="Create User"
+                    Style="{StaticResource AccentButtonStyle}"
+                    Click="CreateButton_Click"/>
+        </StackPanel>
+
+        <!-- Error Info Bar -->
+        <InfoBar Grid.Row="2"
+                 x:Name="ErrorInfoBar"
+                 IsOpen="False"
+                 Severity="Error"
+                 Title="Error"
+                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"/>
+    </Grid>
+</Window>

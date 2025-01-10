@@ -1,9 +1,9 @@
+using System;
+using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading.Tasks;
 using Windows.UI;
 using Microsoft.UI.Xaml.Media;
 using System.Collections.Generic;
@@ -12,6 +12,9 @@ using Microsoft.UI;
 using System.Threading;
 using ProxmoxApiHelper.Helpers;
 using Microsoft.UI.Windowing;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using Microsoft.UI.Dispatching;
 
 namespace ProxmoxApiHelper
 {
@@ -21,12 +24,14 @@ namespace ProxmoxApiHelper
         private ObservableCollection<ProxMachine> _vms;
         private ProxMachine _selectedVm;
         private AppWindow appWindow;
+        public MainPageViewModel ViewModel { get; }
 
         public WindowProxmox(ProxmoxClient proxmoxClient)
         {
             this.InitializeComponent();
             _proxmoxClient = proxmoxClient ?? throw new ArgumentNullException(nameof(proxmoxClient));
             _vms = new ObservableCollection<ProxMachine>();
+            ViewModel = new MainPageViewModel();
             InitializeAsync();
             TitleTop();
         }
@@ -43,6 +48,7 @@ namespace ProxmoxApiHelper
                 throw new Exception("Unsupported OS version.");
             }
         }
+
         private async void InitializeAsync()
         {
             try
@@ -50,6 +56,7 @@ namespace ProxmoxApiHelper
                 await LoadNodeData();
                 await RefreshVMList();
                 await LoadServerStats();
+                await LoadUsersAndGroups();
             }
             catch (Exception ex)
             {
@@ -67,6 +74,36 @@ namespace ProxmoxApiHelper
             catch (Exception ex)
             {
                 await ShowErrorDialog("Node Loading Error", $"Failed to load nodes: {ex.Message}");
+            }
+        }
+
+        private async Task LoadUsersAndGroups()
+        {
+            try
+            {
+                var users = await _proxmoxClient.GetUsersAsync();
+                var groups = await _proxmoxClient.GetGroupsAsync();
+
+              
+                    ViewModel.Users.Clear();
+                    foreach (var user in users)
+                    {
+                        ViewModel.Users.Add(new UserItem { UserId = user, IsSelected = false });
+                    }
+
+                    ViewModel.Groups.Clear();
+                    foreach (var group in groups)
+                    {
+                        if (group.TryGetValue("groupid", out var groupId) && groupId != null)
+                        {
+                            ViewModel.Groups.Add(groupId.ToString());
+                        }
+                    }
+              
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("User and Group Loading Error", $"Failed to load users and groups: {ex.Message}");
             }
         }
 
@@ -220,9 +257,9 @@ namespace ProxmoxApiHelper
             {
                 try
                 {
-                   var config = await _proxmoxClient.GetVmConfigAsync(_selectedVm.Node, _selectedVm.Id);
-                   EditVmProxmox editVmWindow = new EditVmProxmox(_proxmoxClient, _selectedVm.Node, _selectedVm.Id);
-                   editVmWindow.Activate();
+                    var config = await _proxmoxClient.GetVmConfigAsync(_selectedVm.Node, _selectedVm.Id);
+                    EditVmProxmox editVmWindow = new EditVmProxmox(_proxmoxClient, _selectedVm.Node, _selectedVm.Id);
+                    editVmWindow.Activate();
                 }
                 catch (Exception ex)
                 {
@@ -262,6 +299,7 @@ namespace ProxmoxApiHelper
             CreateVmPanelProxmox.Visibility = Visibility.Collapsed;
             NetworkConfigPanelProxmox.Visibility = Visibility.Collapsed;
             ServerStatsPanelProxmox.Visibility = Visibility.Collapsed;
+            UsersGroups.Visibility = Visibility.Collapsed;
 
             switch (navItemTag)
             {
@@ -274,12 +312,14 @@ namespace ProxmoxApiHelper
                 case "network_config":
                     NetworkConfigPanelProxmox.Visibility = Visibility.Visible;
                     break;
+                case "grps_config":
+                    UsersGroups.Visibility = Visibility.Visible;
+                    break;
                 case "server_stats":
                     ServerStatsPanelProxmox.Visibility = Visibility.Visible;
                     break;
             }
         }
-
 
         private async void CreateVmButtonProxmox_Click(object sender, RoutedEventArgs e)
         {
@@ -328,16 +368,14 @@ namespace ProxmoxApiHelper
                     balloon: ((int)NewVmMemoryTextBoxProxmox.Value).ToString(),
                     disktype: bootDiskValue ?? "scsi0",
                     onboot: onbootValue,
-                    agent: AgentCheckBoxProxmox.IsChecked == true ? "1" : "0",
+                    agent: agentValue,
                     autostart: autostartValue,
                     sshkeys: SshKeysTextBoxProxmox.Text,
                     ipconfig0: IpConfig0TextBoxProxmox.Text,
                     tags: TagsTextBoxProxmox.Text,
                     kvm: KvmCheckBoxProxmox.IsChecked ?? false,
                     protection: ProtectionCheckBoxProxmox.IsChecked ?? false
-                    ); 
-
-
+                );
 
                 if (result.Success)
                 {
@@ -522,6 +560,152 @@ namespace ProxmoxApiHelper
                 OsType.SelectedIndex = 0;
             }
         }
+
+        private void AddUserButton_Click(object sender, RoutedEventArgs e)
+        {
+            var createUserWindow = new CreateUserWindow(_proxmoxClient);
+            createUserWindow.Activate();
+        }
+
+        private void EditUserButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.SelectedUsers.Count == 1)
+            {
+                var editUserWindow = new EditUserWindow(_proxmoxClient, ViewModel.SelectedUsers[0].UserId);
+                editUserWindow.Activate();
+            }
+            else if (ViewModel.SelectedUsers.Count > 1)
+            {
+                ShowErrorDialog("Edit User Error", "Please select only one user to edit.");
+            }
+            else
+            {
+                ShowErrorDialog("Edit User Error", "Please select a user to edit.");
+            }
+        }
+
+        private async void DeleteUserButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.SelectedUsers.Count > 0)
+            {
+                var userIds = string.Join(", ", ViewModel.SelectedUsers.Select(u => u.UserId));
+                ContentDialog dialog = new ContentDialog
+                {
+                    Title = "Confirm Delete",
+                    Content = $"Are you sure you want to delete the following user(s): {userIds}?",
+                    PrimaryButtonText = "Delete",
+                    CloseButtonText = "Cancel",
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        foreach (var user in ViewModel.SelectedUsers)
+                        {
+                            await _proxmoxClient.DeleteUserAsync(user.UserId);
+                        }
+                        await LoadUsersAndGroups();
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowErrorDialog("Delete User Error", $"Failed to delete user(s): {ex.Message}");
+                    }
+                }
+            }
+            else
+            {
+                await ShowErrorDialog("Delete User Error", "Please select at least one user to delete.");
+            }
+        }
+
+        private void AddGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            var createGroupWindow = new CreateGroupWindow(_proxmoxClient);
+            createGroupWindow.Activate();
+        }
+
+        private void EditGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.SelectedGroup != null)
+            {
+                var editGroupWindow = new EditGroupWindow(_proxmoxClient, ViewModel.SelectedGroup);
+                editGroupWindow.Activate();
+            }
+        }
+
+        private async void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (ViewModel.SelectedGroup != null)
+            {
+                ContentDialog dialog = new ContentDialog
+                {
+                    Title = "Confirm Delete",
+                    Content = $"Are you sure you want to delete group {ViewModel.SelectedGroup}?",
+                    PrimaryButtonText = "Delete",
+                    CloseButtonText = "Cancel",
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        await _proxmoxClient.DeleteGroupAsync(ViewModel.SelectedGroup);
+                        await LoadUsersAndGroups();
+                    }
+                    catch (Exception ex)
+                    {
+                        await ShowErrorDialog("Delete Group Error", $"Failed to delete group: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        private void UserCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is UserItem userItem)
+            {
+                if (!ViewModel.SelectedUsers.Contains(userItem))
+                {
+                    ViewModel.SelectedUsers.Add(userItem);
+                }
+            }
+        }
+
+        private void UserCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is UserItem userItem)
+            {
+                ViewModel.SelectedUsers.Remove(userItem);
+            }
+        }
+
+        private void GroupCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is GroupItem groupItem)
+            {
+                groupItem.IsSelected = true;
+            }
+        }
+
+        private void GroupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is GroupItem groupItem)
+            {
+                groupItem.IsSelected = false;
+            }
+        }
+
+        private void RefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadUsersAndGroups();
+        }
     }
 
     public class ProxMachine
@@ -601,6 +785,125 @@ namespace ProxmoxApiHelper
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
             throw new NotImplementedException();
+        }
+    }
+
+    public class UserItem : INotifyPropertyChanged
+    {
+        private string _userId;
+        private bool _isSelected;
+
+        public string UserId
+        {
+            get => _userId;
+            set
+            {
+                _userId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class GroupItem : INotifyPropertyChanged
+    {
+        private string _groupId;
+        private bool _isSelected;
+
+        public string GroupId
+        {
+            get => _groupId;
+            set
+            {
+                _groupId = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+    }
+
+    public class MainPageViewModel : INotifyPropertyChanged
+    {
+        private ObservableCollection<UserItem> _selectedUsers;
+        private string _selectedGroup;
+        private bool _isLoading;
+
+        public ObservableCollection<UserItem> Users { get; } = new ObservableCollection<UserItem>();
+        public ObservableCollection<string> Groups { get; } = new ObservableCollection<string>();
+        public ObservableCollection<string> AvailableGroups { get; } = new ObservableCollection<string>();
+
+        public ObservableCollection<UserItem> SelectedUsers
+        {
+            get => _selectedUsers;
+            set
+            {
+                _selectedUsers = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public string SelectedGroup
+        {
+            get => _selectedGroup;
+            set
+            {
+                _selectedGroup = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public bool IsLoading
+        {
+            get => _isLoading;
+            set
+            {
+                _isLoading = value;
+                OnPropertyChanged();
+            }
+        }
+
+        public MainPageViewModel()
+        {
+            SelectedUsers = new ObservableCollection<UserItem>();
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }

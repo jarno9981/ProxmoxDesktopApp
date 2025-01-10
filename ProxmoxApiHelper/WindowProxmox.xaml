@@ -28,6 +28,7 @@
                 <NavigationViewItem Icon="Home" Content="Dashboard" Tag="dashboard" />
                 <NavigationViewItem Icon="Add" Content="Create VM" Tag="create_vm" />
                 <NavigationViewItem Icon="Globe" Content="Network Config" Tag="network_config" />
+                <NavigationViewItem Icon="OtherUser" Content="Groups - Users Config" Tag="grps_config" />
                 <NavigationViewItem Icon="PostUpdate" Content="Server Stats" Tag="server_stats" />
             </NavigationView.MenuItems>
 
@@ -360,6 +361,72 @@
                         <Button x:Name="ConfigureNetworkButtonProxmox" Content="Configure Network" Click="ConfigureNetworkButtonProxmox_Click" Style="{StaticResource AccentButtonStyle}" />
                     </StackPanel>
                 </Grid>
+
+                <Grid x:Name="UsersGroups" Margin="24" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Users and Groups" FontSize="24" FontWeight="Bold" Grid.ColumnSpan="2"/>
+                    <Button x:Name="RefreshButton" 
+                Content="Refresh" 
+                Grid.Column="1" 
+                HorizontalAlignment="Right" 
+                Click="RefreshButton_Click"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            >
+                        
+                    </Button>
+                    <ListView x:Name="UsersListView" 
+                  Grid.Row="1" 
+                  Grid.Column="0" 
+                  Margin="0,10,10,0"
+                  ItemsSource="{x:Bind ViewModel.Users, Mode=OneWay}">
+                        <ListView.Header>
+                            <TextBlock Text="Users" FontSize="20" FontWeight="SemiBold"/>
+                        </ListView.Header>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="local:UserItem">
+                                <CheckBox Content="{x:Bind UserId, Mode=OneWay}"
+                              IsChecked="{x:Bind IsSelected, Mode=TwoWay}"
+                              Checked="UserCheckBox_Checked"
+                              Unchecked="UserCheckBox_Unchecked"/>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+
+                    <ListView x:Name="GroupsListView" 
+          Grid.Row="1" 
+          Grid.Column="1" 
+          Margin="10,10,0,0"
+          ItemsSource="{x:Bind ViewModel.Groups, Mode=OneWay}">
+                        <ListView.Header>
+                            <TextBlock Text="Groups" FontSize="20" FontWeight="SemiBold"/>
+                        </ListView.Header>
+                    </ListView>
+
+
+                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                        <Button x:Name="AddUserButton" Content="Add User" Margin="0,0,10,0" Click="AddUserButton_Click"/>
+                        <Button x:Name="EditUserButton" Content="Edit User" Margin="0,0,10,0" Click="EditUserButton_Click" />
+                        <Button x:Name="DeleteUserButton" Content="Delete User" Click="DeleteUserButton_Click" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                        <Button x:Name="AddGroupButton" Content="Add Group" Margin="0,0,10,0" />
+                        <Button x:Name="EditGroupButton" Content="Edit Group" Margin="0,0,10,0" />
+                        <Button x:Name="DeleteGroupButton" Content="Delete Group" />
+                    </StackPanel>
+                </Grid>
+
 
                 <!-- Server Stats Panel -->
                 <Grid x:Name="ServerStatsPanelProxmox" Visibility="Collapsed" Margin="24">

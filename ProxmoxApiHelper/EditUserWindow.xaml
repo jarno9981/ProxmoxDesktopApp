@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ProxmoxApiHelper.EditUserWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Edit User">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+    
+    <Grid Padding="20">
+        <StackPanel>
+            <TextBlock Text="Edit User" 
+                       Style="{StaticResource TitleTextBlockStyle}" 
+                       Margin="0,0,0,20"/>
+
+            <TextBox x:Name="UserIdTextBox" 
+                     Header="User ID" 
+                     IsReadOnly="True" 
+                     Margin="0,0,0,10"/>
+
+            <TextBox x:Name="EmailTextBox" 
+                     Header="Email" 
+                     Margin="0,0,0,10"/>
+
+            <CheckBox x:Name="EnabledCheckBox" 
+                     Content="Enabled" 
+                     Margin="0,0,0,10"/>
+
+            <CalendarDatePicker x:Name="ExpiryDatePicker" 
+                               Header="Account Expiry Date"
+                               Margin="0,0,0,20"/>
+
+            <TextBlock Text="Group Membership" 
+                       Style="{StaticResource SubtitleTextBlockStyle}" 
+                       Margin="0,0,0,10"/>
+
+            <ScrollViewer Height="200" 
+                         Margin="0,0,0,20"
+                         BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
+                         BorderThickness="1"
+                         Padding="10">
+                <StackPanel x:Name="GroupsStackPanel"/>
+            </ScrollViewer>
+
+            <Button x:Name="SaveButton" 
+                    Content="Save" 
+                    Click="SaveButton_Click"
+                    Style="{StaticResource AccentButtonStyle}"
+                    HorizontalAlignment="Right"/>
+        </StackPanel>
+    </Grid>
+</Window>
