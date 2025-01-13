@@ -1,4 +1,4 @@
-<Window
+﻿<Window
     x:Class="ProxmoxApiHelper.WindowProxmox"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -30,6 +30,7 @@
                 <NavigationViewItem Icon="Globe" Content="Network Config" Tag="network_config" />
                 <NavigationViewItem Icon="OtherUser" Content="Groups - Users Config" Tag="grps_config" />
                 <NavigationViewItem Icon="PostUpdate" Content="Server Stats" Tag="server_stats" />
+                <NavigationViewItem Icon="Admin" Content="Manage Pools" Tag="manage_pools" />
             </NavigationView.MenuItems>
 
             <Grid>
@@ -159,6 +160,11 @@
                                 <ComboBox x:Name="StorageSelectionComboBoxProxmox" Header="Storage *" PlaceholderText="Select Storage">
                                     <ToolTipService.ToolTip>
                                         <TextBlock Text="The storage location for the VM's disk"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <ComboBox x:Name="PoolSelectionComboBoxProxmox" Header="Pool (Set Pool So Certian User Group Can Only Access The Vm)" PlaceholderText="Select Pool (optional)">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The resource pool to which the VM will be assigned"/>
                                     </ToolTipService.ToolTip>
                                 </ComboBox>
                             </StackPanel>
@@ -313,12 +319,186 @@
                                         <TextBlock Text="Create the virtual machine with the specified configuration"/>
                                     </ToolTipService.ToolTip>
                                 </Button>
+                                <Button x:Name="MassCreateVmButtonProxmox" Content="Mass Create VMs" Click="MassCreateVmButtonProxmox_Click" Style="{ThemeResource AccentButtonStyle}">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Open dialog to create multiple virtual machines at once"/>
+                                    </ToolTipService.ToolTip>
+                                </Button>
                                 <ProgressRing x:Name="CreateVmProgressRing" IsActive="False" Width="20" Height="20" />
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
 
+                <ContentDialog x:Name="MassVmCreationDialog"
+               Title="Mass VM Creation"
+               PrimaryButtonText="Create VMs"
+               CloseButtonText="Cancel"
+               PrimaryButtonClick="MassVmCreationDialog_PrimaryButtonClick"
+               >
+                    <ContentDialog.Content>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="* Required field" 
+                       Style="{ThemeResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                       Margin="0,0,0,8"/>
+
+                            <Pivot Grid.Row="1">
+                                <PivotItem Header="Basic Info">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                        <StackPanel Spacing="8">
+                                            <NumberBox x:Name="MassVmCountNumberBox" Header="Number of VMs to create *" Value="5" Minimum="1" Maximum="20" SpinButtonPlacementMode="Compact">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Number of VMs to create in this batch"/>
+                                                </ToolTipService.ToolTip>
+                                            </NumberBox>
+                                            <ComboBox x:Name="MassVmNodeSelectionComboBox" Header="Node *" PlaceholderText="Select Node" SelectionChanged="MassVmNodeSelectionComboBox_SelectionChanged">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The physical server where the VMs will be created"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmStorageSelectionComboBox" Header="Storage *" PlaceholderText="Select Storage">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The storage location for the VMs' disks"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmPoolSelectionComboBox" Header="Pool" PlaceholderText="Select Pool (optional)">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The resource pool to which the VMs will be assigned"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <NumberBox x:Name="MassVmCpuCoresNumberBox" Header="CPU Cores *" Value="1" Minimum="1" SpinButtonPlacementMode="Compact">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Number of CPU cores allocated to each VM"/>
+                                                </ToolTipService.ToolTip>
+                                            </NumberBox>
+                                            <NumberBox x:Name="MassVmMemoryMBNumberBox" Header="Memory (MB) *" Value="512" Minimum="512" SpinButtonPlacementMode="Compact">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Amount of RAM allocated to each VM in megabytes"/>
+                                                </ToolTipService.ToolTip>
+                                            </NumberBox>
+                                            <NumberBox x:Name="MassVmDiskSizeGBNumberBox" Header="Disk Size (GB) *" Value="8" Minimum="1" SpinButtonPlacementMode="Compact">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Size of each VM's primary disk in gigabytes"/>
+                                                </ToolTipService.ToolTip>
+                                            </NumberBox>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </PivotItem>
+
+                                <PivotItem Header="OS and Network">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                        <StackPanel Spacing="8">
+                                            <ComboBox x:Name="MassVmOsComboBox" Header="OS" PlaceholderText="Select OS">
+                                                <ComboBoxItem Content="Windows" />
+                                                <ComboBoxItem Content="Linux" />
+                                                <ComboBoxItem Content="Other" />
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The type of operating system to be installed"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmOsTypeComboBox" Header="OS Type *" PlaceholderText="Select OS Type">
+                                                <ComboBoxItem Content="l26" />
+                                                <ComboBoxItem Content="l24" />
+                                                <ComboBoxItem Content="win11" />
+                                                <ComboBoxItem Content="win10" />
+                                                <ComboBoxItem Content="win8" />
+                                                <ComboBoxItem Content="win7" />
+                                                <ComboBoxItem Content="wvista" />
+                                                <ComboBoxItem Content="w2k8" />
+                                                <ComboBoxItem Content="w2k3" />
+                                                <ComboBoxItem Content="w2k" />
+                                                <ComboBoxItem Content="wxp" />
+                                                <ComboBoxItem Content="solaris" />
+                                                <ComboBoxItem Content="other" />
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The type of operating system to be installed. Select a specific version or general type."/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmIsoSelectionComboBox" Header="ISO Image" PlaceholderText="Select ISO (optional)">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The ISO image to be mounted for OS installation"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmDiskTypeComboBox" Header="Boot Disk" PlaceholderText="Select Boot Disk">
+                                                <ComboBoxItem Content="scsi0" />
+                                                <ComboBoxItem Content="virtio0" />
+                                                <ComboBoxItem Content="sata0" />
+                                                <ComboBoxItem Content="ide0" />
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The type of disk controller for the boot disk"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <ComboBox x:Name="MassVmNetworkModelComboBox" Header="Network Model *" PlaceholderText="Select Network Model">
+                                                <ComboBoxItem Content="VirtIO" />
+                                                <ComboBoxItem Content="E1000" />
+                                                <ComboBoxItem Content="RTL8139" />
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The type of network adapter for the VMs"/>
+                                                </ToolTipService.ToolTip>
+                                            </ComboBox>
+                                            <TextBox x:Name="MassVmBridgeTextBox" Header="Bridge *" PlaceholderText="vmbr0" Text="vmbr0">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="The network bridge to which the VMs will be connected"/>
+                                                </ToolTipService.ToolTip>
+                                            </TextBox>
+                                            <CheckBox x:Name="MassVmFirewallCheckBox" Content="Enable Firewall" IsChecked="True">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Enable the built-in firewall for the VMs"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </PivotItem>
+
+                                <PivotItem Header="Advanced">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                        <StackPanel Spacing="8">
+                                            <CheckBox x:Name="MassVmUefiCheckBox" Content="Use UEFI">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Enable UEFI boot instead of legacy BIOS"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                            <CheckBox x:Name="MassVmOnBootCheckBox" Content="Start on boot" IsChecked="True">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Automatically start the VMs when the host system boots"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                            <CheckBox x:Name="MassVmAgentCheckBox" Content="Enable QEMU Guest Agent" IsChecked="True">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Enable the QEMU guest agent for better host-guest integration"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                            <CheckBox x:Name="MassVmKvmCheckBox" Content="Enable KVM" IsChecked="True">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Enable hardware virtualization for better performance"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                            <CheckBox x:Name="MassVmProtectionCheckBox" Content="Enable Protection">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Prevent the VMs from being removed accidentally"/>
+                                                </ToolTipService.ToolTip>
+                                            </CheckBox>
+                                            <TextBox x:Name="MassVmTagsTextBox" Header="Tags" PlaceholderText="Enter tags">
+                                                <ToolTipService.ToolTip>
+                                                    <TextBlock Text="Tags for organizing and categorizing the VMs"/>
+                                                </ToolTipService.ToolTip>
+                                            </TextBox>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </PivotItem>
+                            </Pivot>
+
+                            <ProgressBar Grid.Row="2" x:Name="MassVmCreationProgressBar" Visibility="Collapsed" Margin="0,16,0,0" />
+                        </Grid>
+                    </ContentDialog.Content>
+                </ContentDialog>
 
 
                 <!-- Network Configuration Panel -->
@@ -402,15 +582,16 @@
                         </ListView.ItemTemplate>
                     </ListView>
 
-
                     <ListView x:Name="GroupsListView" 
           Grid.Row="1" 
           Grid.Column="1" 
           Margin="10,10,0,0"
-          ItemsSource="{x:Bind ViewModel.Groups, Mode=OneWay}">
+          ItemsSource="{x:Bind ViewModel.Groups, Mode=OneWay}"
+                              ItemClick="GroupsListView_ItemClick">
                         <ListView.Header>
                             <TextBlock Text="Groups" FontSize="20" FontWeight="SemiBold"/>
                         </ListView.Header>
+                        
                     </ListView>
 
 
@@ -421,8 +602,8 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
-                        <Button x:Name="AddGroupButton" Content="Add Group" Margin="0,0,10,0" />
-                        <Button x:Name="EditGroupButton" Content="Edit Group" Margin="0,0,10,0" />
+                        <Button x:Name="AddGroupButton" Content="Add Group" Margin="0,0,10,0" Click="AddGroupButton_Click"/>
+                        <Button x:Name="EditGroupButton" Content="Edit Group" Margin="0,0,10,0" Click="EditGroupButton_Click"/>
                         <Button x:Name="DeleteGroupButton" Content="Delete Group" />
                     </StackPanel>
                 </Grid>
@@ -464,6 +645,163 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
+
+                <Grid x:Name="ManagePoolsPanel" Margin="24" Visibility="Collapsed">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                        <TextBlock Text="Manage Resource Pools" 
+                       Style="{StaticResource TitleTextBlockStyle}"/>
+                        <TextBlock Text="Create and manage resource pools to organize your VMs and control access"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Margin="0,8,0,0"/>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="24"/>
+                            <ColumnDefinition Width="2*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Pools List -->
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <Button x:Name="AddPoolButton" 
+                            Content="Add Pool"
+                            Click="AddPoolButton_Click"/>
+                                <Button x:Name="RefreshPoolsButton" 
+                            Content="Refresh"
+                            Margin="8,0,0,0"
+                            Click="RefreshPoolsButton_Click"/>
+                            </StackPanel>
+
+                            <ListView x:Name="PoolsListView"
+                          Grid.Row="1"
+                          SelectionMode="Single"
+                          SelectionChanged="PoolsListView_SelectionChanged">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding PoolId}" FontSize="14" Padding="4"/>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </Grid>
+
+                        <!-- Separator -->
+                        <Rectangle Grid.Column="1" 
+                       Fill="{ThemeResource DividerStrokeColorDefaultBrush}" 
+                       Width="1" 
+                       Margin="0,12"/>
+
+                        <!-- Pool Details -->
+                        <Grid Grid.Column="2" x:Name="PoolDetailsPanel" Visibility="Collapsed">
+                            <StackPanel Spacing="16">
+                                <TextBox x:Name="PoolNameTextBox"
+                             Header="Pool Name"
+                             IsReadOnly="True"/>
+
+                                <TextBox x:Name="PoolCommentTextBox"
+                             Header="Comment"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             Height="100"/>
+
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Text="Available VMs" 
+                   Style="{StaticResource SubtitleTextBlockStyle}"
+                   Margin="0,0,0,8"
+                   Grid.Column="0"
+                   Grid.Row="0"/>
+
+                                        <TextBlock Text="Permissions in Pool" 
+                   Style="{StaticResource SubtitleTextBlockStyle}"
+                   Margin="0,0,0,8"
+                   Grid.Column="1"
+                   Grid.Row="0"/>
+
+                                        <ListView x:Name="AvailableVMsListView" Grid.Row="1">
+                                            <ListView.ItemContainerStyle>
+                                                <Style TargetType="ListViewItem">
+                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                                                </Style>
+                                            </ListView.ItemContainerStyle>
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,6">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <StackPanel Grid.Column="0">
+                                                            <TextBlock Text="{Binding Name}" Style="{StaticResource BodyTextBlockStyle}" />
+                                                            <TextBlock Text="{Binding Node}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="1" 
+                            Text="{Binding Status}" 
+                            Foreground="{Binding Status, Converter={StaticResource StatusToColorConverterProxmox}}" 
+                            VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+
+                                       
+
+                                        <ListView x:Name="PoolPermissionsListView" 
+                  Grid.Row="1" 
+                  Grid.Column="1" 
+                  Margin="10,10,0,0">
+                                            <ListView.ItemTemplate>
+                                                <DataTemplate>
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding Type}" Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"/>
+                                                    </StackPanel>
+                                                </DataTemplate>
+                                            </ListView.ItemTemplate>
+                                        </ListView>
+                                    </Grid>
+                                </StackPanel>
+
+
+
+
+
+
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="SavePoolButton"
+                                Content="Save Changes"
+                                Click="SavePoolButton_Click"
+                                Style="{StaticResource AccentButtonStyle}"/>
+                                    <Button x:Name="DeletePoolButton"
+                                Content="Delete Pool"
+                                Click="DeletePoolButton_Click"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </Grid>
+
             </Grid>
         </NavigationView>
     </Grid>

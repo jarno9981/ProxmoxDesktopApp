@@ -1,15 +1,14 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ProxmoxApiHelper.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.UI.Windowing;
 using Windows.Graphics;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI;
-using Windows.UI.Popups;
+using AppWindow = Microsoft.UI.Windowing.AppWindow;
 
 namespace ProxmoxApiHelper
 {
@@ -19,6 +18,7 @@ namespace ProxmoxApiHelper
         private readonly string _userId;
         private Dictionary<string, object> _userData;
         private List<Dictionary<string, object>> _allGroups;
+        private AppWindow appWindow;
 
         public EditUserWindow(ProxmoxClient proxmoxClient, string userId)
         {
@@ -27,62 +27,11 @@ namespace ProxmoxApiHelper
             _userId = userId ?? throw new ArgumentNullException(nameof(userId));
 
             SetWindowSize(600, 1025);
-            SetupTitleBar();
 
-            // Remove the Content initialization as it's already set by InitializeComponent
             LoadUserDataAsync();
-
         }
 
-
-        private async void LoadUserDataAsync()
-        {
-            try
-            {
-                _userData = await _proxmoxClient.GetUserConfigAsync(_userId);
-                _allGroups = await _proxmoxClient.GetGroupsAsync();
-
-                await PopulateUserDataAsync();
-            }
-            catch (Exception ex)
-            {
-                
-            }
-        }
-
-        private async Task PopulateUserDataAsync()
-        {
-            
-                UserIdTextBox.Text = _userId;
-                EmailTextBox.Text = _userData.TryGetValue("email", out var email) ? email.ToString() : "";
-                EnabledCheckBox.IsChecked = _userData.TryGetValue("enable", out var enable) && (bool)enable;
-
-                if (_userData.TryGetValue("expire", out var expireObj) && long.TryParse(expireObj.ToString(), out var expireSeconds))
-                {
-                    ExpiryDatePicker.Date = DateTimeOffset.FromUnixTimeSeconds(expireSeconds).Date;
-                }
-                else
-                {
-                    ExpiryDatePicker.Date = DateTime.Now.AddYears(1).Date;
-                }
-
-                var userGroups = _userData.TryGetValue("groups", out var groupsObj) ? groupsObj.ToString().Split(',') : Array.Empty<string>();
-
-                GroupsStackPanel.Children.Clear();
-                foreach (var group in _allGroups)
-                {
-                    if (group.TryGetValue("groupid", out var groupId) && groupId != null)
-                    {
-                        var checkBox = new CheckBox
-                        {
-                            Content = groupId.ToString(),
-                            IsChecked = userGroups.Contains(groupId.ToString())
-                        };
-                        GroupsStackPanel.Children.Add(checkBox);
-                    }
-                }
-           
-        }
+       
 
         private void SetWindowSize(int width, int height)
         {
@@ -92,14 +41,151 @@ namespace ProxmoxApiHelper
             appWindow.Resize(new SizeInt32(width, height));
         }
 
-        private void SetupTitleBar()
+
+        private async void LoadUserDataAsync()
         {
-            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            WindowId windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
-            AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
-            appWindow.SetIcon("apiwindowlogo.ico");
-            appWindow.Title = "Edit User";
+            try
+            {
+                var response = await _proxmoxClient.GetUserConfigAsync(_userId);
+                _userData = new Dictionary<string, object>();
+
+                foreach (var kvp in response)
+                {
+                    switch (kvp.Value.ValueKind)
+                    {
+                        case JsonValueKind.String:
+                            _userData[kvp.Key] = kvp.Value.GetString();
+                            break;
+                        case JsonValueKind.Number:
+                            _userData[kvp.Key] = kvp.Value.GetInt64();
+                            break;
+                        case JsonValueKind.True:
+                        case JsonValueKind.False:
+                            _userData[kvp.Key] = kvp.Value.GetBoolean();
+                            break;
+                        case JsonValueKind.Array:
+                            var array = new List<string>();
+                            foreach (var item in kvp.Value.EnumerateArray())
+                            {
+                                if (item.ValueKind == JsonValueKind.String)
+                                {
+                                    array.Add(item.GetString());
+                                }
+                            }
+                            _userData[kvp.Key] = array;
+                            break;
+                        case JsonValueKind.Object:
+                            var dict = new Dictionary<string, object>();
+                            foreach (var prop in kvp.Value.EnumerateObject())
+                            {
+                                dict[prop.Name] = prop.Value.GetString();
+                            }
+                            _userData[kvp.Key] = dict;
+                            break;
+                    }
+                }
+
+                _allGroups = await _proxmoxClient.GetGroupsAsync();
+                await PopulateUserDataAsync();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Failed to load user data", ex.Message);
+            }
         }
+
+        private async Task PopulateUserDataAsync()
+        {
+            try
+            {
+                UserIdTextBox.Text = _userId;
+
+                if (_userData.TryGetValue("email", out var email))
+                {
+                    EmailTextBox.Text = email?.ToString() ?? "";
+                }
+
+                if (_userData.TryGetValue("enable", out var enable))
+                {
+                    EnabledCheckBox.IsChecked = enable is bool enableBool && enableBool;
+                }
+
+                if (_userData.TryGetValue("firstname", out var firstName))
+                {
+                    FirstNameTextBox.Text = firstName?.ToString() ?? "";
+                }
+
+                if (_userData.TryGetValue("lastname", out var lastName))
+                {
+                    LastNameTextBox.Text = lastName?.ToString() ?? "";
+                }
+
+                if (_userData.TryGetValue("comment", out var comment))
+                {
+                    CommentTextBox.Text = comment?.ToString() ?? "";
+                }
+
+                if (_userData.TryGetValue("expire", out var expire) && expire != null)
+                {
+                    if (long.TryParse(expire.ToString(), out long expireSeconds))
+                    {
+                        ExpiryDatePicker.Date = DateTimeOffset.FromUnixTimeSeconds(expireSeconds).Date;
+                    }
+                }
+                else
+                {
+                    ExpiryDatePicker.Date = DateTimeOffset.Now;
+                }
+
+                if (_userData.TryGetValue("keys", out var keys))
+                {
+                    KeysTextBox.Text = keys?.ToString() ?? "";
+                }
+
+                // Handle groups
+                var userGroups = new List<string>();
+                if (_userData.TryGetValue("groups", out var groups))
+                {
+                    if (groups is string groupsStr)
+                    {
+                        userGroups.AddRange(groupsStr.Split(',', StringSplitOptions.RemoveEmptyEntries));
+                    }
+                    else if (groups is List<string> groupsList)
+                    {
+                        userGroups.AddRange(groupsList);
+                    }
+                }
+
+                var groupItems = _allGroups.Select(group =>
+                {
+                    group.TryGetValue("groupid", out var groupId);
+                    return new GroupItem
+                    {
+                        GroupId = groupId?.ToString(),
+                        IsSelected = userGroups.Contains(groupId?.ToString())
+                    };
+                }).ToList();
+
+                GroupsListView.ItemsSource = groupItems;
+
+                // Handle tokens
+                if (_userData.TryGetValue("tokens", out var tokens) && tokens is Dictionary<string, object> tokenDict)
+                {
+                    TokensListView.Items.Clear();
+                    foreach (var token in tokenDict)
+                    {
+                        TokensListView.Items.Add(new TokenItem { Name = token.Key });
+                    }
+                }
+
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Error populating user data", ex.Message);
+            }
+        }
+
+
 
         private async void SaveButton_Click(object sender, RoutedEventArgs e)
         {
@@ -109,38 +195,74 @@ namespace ProxmoxApiHelper
                 {
                     Email = EmailTextBox.Text,
                     Enable = EnabledCheckBox.IsChecked ?? false,
-                    Expire = (int?)ExpiryDatePicker.Date?.ToUnixTimeSeconds()
+                    Firstname = FirstNameTextBox.Text,
+                    Lastname = LastNameTextBox.Text,
+                    Comment = CommentTextBox.Text,
+                    Keys = KeysTextBox.Text,
+                    Append = AppendCheckBox.IsChecked ?? false
                 };
 
-                var selectedGroups = GroupsStackPanel.Children
-                    .OfType<CheckBox>()
-                    .Where(cb => cb.IsChecked == true)
-                    .Select(cb => cb.Content.ToString())
+                // Only set the password if a new one is provided
+                if (!string.IsNullOrWhiteSpace(PasswordBox.Password))
+                {
+                    updatedUserConfig.Password = PasswordBox.Password;
+                }
+                
+                updatedUserConfig.Expire = (int)ExpiryDatePicker.Date.ToUnixTimeSeconds();
+                
+
+                var selectedGroups = (GroupsListView.ItemsSource as List<GroupItem>)?
+                    .Where(gi => gi.IsSelected)
+                    .Select(gi => gi.GroupId)
                     .ToList();
 
-                updatedUserConfig.Groups = selectedGroups;
+                updatedUserConfig.Groups = selectedGroups ;
 
                 bool success = await _proxmoxClient.UpdateUserAsync(_userId, updatedUserConfig);
                 if (success)
                 {
-                    MessageDialog successDialog = new MessageDialog("User information has been successfully updated.", "User Updated");
-                    await successDialog.ShowAsync();
+                    await ShowSuccessDialog("User information has been successfully updated.");
                     this.Close();
                 }
                 else
                 {
-                    MessageDialog errorDialog = new MessageDialog("Failed to update user. Please try again.", "Update User Error");
-                    await errorDialog.ShowAsync();
+                    await ShowErrorDialog("Update User Error", "Failed to update user. Please try again.");
                 }
             }
             catch (Exception ex)
             {
-                MessageDialog errorDialog = new MessageDialog($"Failed to update user: {ex.Message}", "Update User Error");
-                await errorDialog.ShowAsync();
+                await ShowErrorDialog("Update User Error", $"Failed to update user: {ex.Message}");
             }
+        }
+
+        private async Task ShowErrorDialog(string title, string message)
+        {
+            ContentDialog errorDialog = new ContentDialog
+            {
+                Title = title,
+                Content = message,
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await errorDialog.ShowAsync();
+        }
+
+        private async Task ShowSuccessDialog(string message)
+        {
+            ContentDialog successDialog = new ContentDialog
+            {
+                Title = "Success",
+                Content = message,
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await successDialog.ShowAsync();
         }
     }
 
-
+    public class TokenItem
+    {
+        public string Name { get; set; }
+    }
 }
 

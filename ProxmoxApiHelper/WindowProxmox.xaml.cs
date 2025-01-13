@@ -15,6 +15,8 @@ using Microsoft.UI.Windowing;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
+using System.Text;
+using System.Text.Json;
 
 namespace ProxmoxApiHelper
 {
@@ -24,6 +26,10 @@ namespace ProxmoxApiHelper
         private ObservableCollection<ProxMachine> _vms;
         private ProxMachine _selectedVm;
         private AppWindow appWindow;
+        private ObservableCollection<VmConfig> _massVmConfigs;
+        private Random _random = new Random();
+
+
         public MainPageViewModel ViewModel { get; }
 
         public WindowProxmox(ProxmoxClient proxmoxClient)
@@ -31,10 +37,36 @@ namespace ProxmoxApiHelper
             this.InitializeComponent();
             _proxmoxClient = proxmoxClient ?? throw new ArgumentNullException(nameof(proxmoxClient));
             _vms = new ObservableCollection<ProxMachine>();
+            _massVmConfigs = new ObservableCollection<VmConfig>();
             ViewModel = new MainPageViewModel();
+
             InitializeAsync();
             TitleTop();
         }
+
+        private void AvailableVMsListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            _selectedVm = AvailableVMsListView.SelectedItem as ProxMachine;
+            var vms = _proxmoxClient.GetAllVmsAsync();
+            AvailableVMsListView.ItemsSource = vms;
+        }
+
+        private void VMCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is VMItem vmItem)
+            {
+                vmItem.IsSelected = true;
+            }
+        }
+
+        private void VMCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox && checkBox.DataContext is VMItem vmItem)
+            {
+                vmItem.IsSelected = false;
+            }
+        }
+       
 
         public void TitleTop()
         {
@@ -57,6 +89,8 @@ namespace ProxmoxApiHelper
                 await RefreshVMList();
                 await LoadServerStats();
                 await LoadUsersAndGroups();
+                await LoadPools();
+
             }
             catch (Exception ex)
             {
@@ -64,12 +98,43 @@ namespace ProxmoxApiHelper
             }
         }
 
+        private async Task LoadPools()
+        {
+            try
+            {
+                var pools = await _proxmoxClient.GetResourcePoolsAsync();
+                if (pools != null && pools.Count > 0)
+                {
+                    PoolsListView.ItemsSource = pools;
+                    PoolSelectionComboBoxProxmox.ItemsSource = pools.Select(p => p.PoolId);
+                    MassVmPoolSelectionComboBox.ItemsSource = pools.Select(p => p.PoolId);
+
+
+                    Console.WriteLine($"Loaded {pools.Count} pools successfully.");
+                }
+                else
+                {
+                    Console.WriteLine("No pools were retrieved or the list is empty.");
+                    // Optionally, you can set a message for the user
+                    // PoolsListView.ItemsSource = new List<string> { "No pools available." };
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading pools: {ex.Message}");
+                await ShowErrorDialog("Failed to load pools", ex.Message);
+            }
+        }
+
+
         private async Task LoadNodeData()
         {
             try
             {
                 var nodes = await _proxmoxClient.GetNodesAsync();
                 NodeSelectionComboBoxProxmox.ItemsSource = nodes.Select(n => n["node"].ToString());
+                MassVmNodeSelectionComboBox.ItemsSource = nodes.Select(n => n["node"].ToString());
+
             }
             catch (Exception ex)
             {
@@ -77,6 +142,131 @@ namespace ProxmoxApiHelper
             }
         }
 
+        private async void PoolsListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            PoolDetailsPanel.Visibility = Visibility.Collapsed;
+
+            if (PoolsListView.SelectedItem is ProxmoxClient.ResourcePool selectedPool)
+            {
+                try
+                {
+                    await _proxmoxClient.GetPoolDetailsAsync(selectedPool.PoolId);
+
+                    PoolNameTextBox.Text = selectedPool.PoolId ?? string.Empty;
+                    PoolCommentTextBox.Text = selectedPool.Comment ?? string.Empty;
+
+                    AvailableVMsListView.ItemsSource = selectedPool.Members;
+
+                    PoolDetailsPanel.Visibility = Visibility.Visible;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error loading pool details for pool {selectedPool.PoolId}: {ex.Message}");
+                    await ShowErrorDialog("Error", $"Failed to load pool details: {ex.Message}");
+                }
+            }
+            else
+            {
+                ClearPoolDetails();
+            }
+        }
+
+        private void ClearPoolDetails()
+        {
+            PoolNameTextBox.Text = string.Empty;
+            PoolCommentTextBox.Text = string.Empty;
+            AvailableVMsListView.ItemsSource = null;
+        }
+
+
+        private void AddPoolButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Implement add pool functionality
+            // You might want to open a dialog or navigate to a new page for adding a pool
+        }
+
+        private async void SavePoolButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PoolsListView.SelectedItem is ProxmoxClient.ResourcePool selectedPool)
+            {
+                try
+                {
+                    string newComment = PoolCommentTextBox.Text;
+                    List<string> currentMembers = AvailableVMsListView.Items.Cast<ProxMachine>()
+                                                    .Select(m => m.Id)
+                                                    .ToList();
+
+                    var updateResult = await _proxmoxClient.UpdateResourcePoolAsync(
+                        selectedPool.PoolId,
+                        comment: newComment,
+                        vms: currentMembers
+                    );
+
+                    
+                        await LoadPools(); // Refresh the pool list
+                        // Update the selected pool in the list view
+                        PoolsListView.SelectedItem = PoolsListView.Items.FirstOrDefault(p => (p as ProxmoxClient.ResourcePool)?.PoolId == selectedPool.PoolId);
+                    
+                }
+                catch (Exception ex)
+                {
+                    ShowErrorMessage($"Error updating pool: {ex.Message}");
+                }
+            }
+            else
+            {
+                ShowErrorMessage("No pool selected. Please select a pool to update.");
+            }
+        }
+
+        private async void ShowErrorMessage(string message)
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Error",
+                    Content = message,
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot,
+                };
+
+                await dialog.ShowAsync();
+            });
+        }
+
+
+        private void RefreshPoolsButton_Click(object sender, RoutedEventArgs e)
+        {
+            LoadPools();
+        }
+
+        private async void DeletePoolButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (PoolsListView.SelectedItem is ProxmoxClient.ResourcePool selectedPool)
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Confirm Deletion",
+                    Content = $"Are you sure you want to delete the pool '{selectedPool.PoolId}'?",
+                    PrimaryButtonText = "Delete",
+                    CloseButtonText = "Cancel"
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    try
+                    {
+                        
+                    }
+                    catch (Exception ex)
+                    {
+                    }
+                }
+            }
+        }
         private async Task LoadUsersAndGroups()
         {
             try
@@ -202,6 +392,8 @@ namespace ProxmoxApiHelper
             await PerformVmAction("shutdown", "Shutting down");
         }
 
+     
+
         private async Task PerformVmAction(string action, string actionName)
         {
             if (_selectedVm != null)
@@ -300,6 +492,7 @@ namespace ProxmoxApiHelper
             NetworkConfigPanelProxmox.Visibility = Visibility.Collapsed;
             ServerStatsPanelProxmox.Visibility = Visibility.Collapsed;
             UsersGroups.Visibility = Visibility.Collapsed;
+            ManagePoolsPanel.Visibility = Visibility.Collapsed;
 
             switch (navItemTag)
             {
@@ -317,6 +510,10 @@ namespace ProxmoxApiHelper
                     break;
                 case "server_stats":
                     ServerStatsPanelProxmox.Visibility = Visibility.Visible;
+
+                    break;
+                case "manage_pools":
+                    ManagePoolsPanel.Visibility = Visibility.Visible;
                     break;
             }
         }
@@ -374,7 +571,8 @@ namespace ProxmoxApiHelper
                     ipconfig0: IpConfig0TextBoxProxmox.Text,
                     tags: TagsTextBoxProxmox.Text,
                     kvm: KvmCheckBoxProxmox.IsChecked ?? false,
-                    protection: ProtectionCheckBoxProxmox.IsChecked ?? false
+                    protection: ProtectionCheckBoxProxmox.IsChecked ?? false,
+                    pool: PoolSelectionComboBoxProxmox.SelectedItem != null ? $"{PoolSelectionComboBoxProxmox.SelectedItem}" : null
                 );
 
                 if (result.Success)
@@ -417,6 +615,8 @@ namespace ProxmoxApiHelper
             {
                 var storages = await _proxmoxClient.GetStorageAsync(nodeName);
                 StorageSelectionComboBoxProxmox.ItemsSource = storages.Select(s => s["storage"].ToString());
+                MassVmStorageSelectionComboBox.ItemsSource = storages.Select(s => s["storage"].ToString());
+
             }
             catch (Exception ex)
             {
@@ -432,6 +632,9 @@ namespace ProxmoxApiHelper
                 IsoSelectionComboBoxProxmox.ItemsSource = isoList
                     .Where(c => c["content"].ToString() == "iso")
                     .Select(c => c["volid"].ToString());
+                MassVmIsoSelectionComboBox.ItemsSource = isoList
+                   .Where(c => c["content"].ToString() == "iso")
+                   .Select(c => c["volid"].ToString());
             }
             catch (Exception ex)
             {
@@ -624,15 +827,15 @@ namespace ProxmoxApiHelper
 
         private void AddGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            var createGroupWindow = new CreateGroupWindow(_proxmoxClient);
+            var createGroupWindow = new CreateGroup(_proxmoxClient);
             createGroupWindow.Activate();
         }
 
         private void EditGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel.SelectedGroup != null)
+            if (GroupsListView.SelectedItem is GroupItem selectedGroup)
             {
-                var editGroupWindow = new EditGroupWindow(_proxmoxClient, ViewModel.SelectedGroup);
+                var editGroupWindow = new EditGroupWindow(_proxmoxClient, selectedGroup.GroupId);
                 editGroupWindow.Activate();
             }
         }
@@ -706,7 +909,266 @@ namespace ProxmoxApiHelper
         {
             LoadUsersAndGroups();
         }
+
+        private string GenerateRandomVmId()
+        {
+            return _random.Next(100, 999999).ToString();
+        }
+
+        private string GenerateRandomVmName()
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            return new string(Enumerable.Repeat(chars, 8)
+                .Select(s => s[_random.Next(s.Length)]).ToArray());
+        }
+
+       
+
+        private async void MassCreateVmButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            MassVmCreationDialog.XamlRoot = this.Content.XamlRoot;
+            await MassVmCreationDialog.ShowAsync();
+        }
+
+
+        private void MassVmNodeSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (MassVmNodeSelectionComboBox.SelectedItem is string selectedNode)
+            {
+                LoadStoragesForNode(selectedNode);
+                UpdateIsoComboBox(selectedNode);
+            }
+        }
+
+        private async void LoadStoragesForNode(string node)
+        {
+            try
+            {
+                var storages = await _proxmoxClient.GetStorageAsync(node);
+                MassVmStorageSelectionComboBox.ItemsSource = storages.Select(s => s["storage"].ToString());
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Storage Loading Error", $"Failed to load storages for node {node}: {ex.Message}");
+            }
+        }
+
+        private static readonly object _lock = new object();
+
+        private string GetNextVMID()
+        {
+            // Use lock to ensure thread-safe random number generation
+            lock (_lock)
+            {
+                return _random.Next(250, 1000).ToString("D3");
+            }
+        }
+        private async void MassVmCreationDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            MassVmCreationProgressBar.Visibility = Visibility.Visible;
+            int vmCount = (int)MassVmCountNumberBox.Value;
+            MassVmCreationProgressBar.Maximum = vmCount;
+            MassVmCreationProgressBar.Value = 0;
+
+            try
+            {
+                // Validation
+                if (MassVmNodeSelectionComboBox.SelectedItem == null ||
+                    MassVmStorageSelectionComboBox.SelectedItem == null ||
+                    string.IsNullOrWhiteSpace(MassVmBridgeTextBox.Text) ||
+                    MassVmNetworkModelComboBox.SelectedItem == null)
+                {
+                    throw new ArgumentException("Please fill in all required fields.");
+                }
+
+                List<string> createdVMs = new List<string>();
+                List<(string Name, string Error)> failedVMs = new List<(string Name, string Error)>();
+
+
+                
+
+                // Create VMs sequentially
+                for (int i = 0; i < vmCount; i++)
+                {
+                    try
+                    {
+                        string vmId = GetNextVMID();
+                        string vmName = $"VM-{GenerateRandomLetters(5)}";
+
+                        var result = await _proxmoxClient.CreateVMAsync(
+                            // Required parameters
+                            node: MassVmNodeSelectionComboBox.SelectedItem.ToString(),
+                            vmid: int.Parse(vmId),
+                            storage: MassVmStorageSelectionComboBox.SelectedItem.ToString(),
+                            disktype: (MassVmDiskTypeComboBox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower() ?? "scsi0",
+                            diskSize: (int)MassVmDiskSizeGBNumberBox.Value,
+
+                            // Basic configuration
+                            name: vmName,
+                            cores: (int)MassVmCpuCoresNumberBox.Value,
+                            memory: ((int)MassVmMemoryMBNumberBox.Value).ToString(),
+                            balloon: ((int)MassVmMemoryMBNumberBox.Value).ToString(),
+
+                            // OS and Boot configuration
+                            ostype: (MassVmOsTypeComboBox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower() ?? "l26",
+                            iso: MassVmIsoSelectionComboBox.SelectedItem?.ToString(),
+                            bios: MassVmUefiCheckBox.IsChecked == true ? "ovmf" : "seabios",
+
+                            // Network configuration
+                            net0: $"model={(MassVmNetworkModelComboBox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower() ?? "virtio"},bridge={MassVmBridgeTextBox.Text},firewall={(MassVmFirewallCheckBox.IsChecked == true ? "1" : "0")}",
+
+                            // Advanced options
+                            acpi: true,
+                            agent: MassVmAgentCheckBox.IsChecked == true ? "1" : "0",
+                            autostart: false,
+                            kvm: MassVmKvmCheckBox.IsChecked ?? true,
+                            onboot: MassVmOnBootCheckBox.IsChecked ?? false,
+                            protection: MassVmProtectionCheckBox.IsChecked ?? false,
+
+                            // Resource pool
+                            pool: MassVmPoolSelectionComboBox.SelectedItem?.ToString(),
+
+                            // Additional configuration
+                            sshkeys: "",
+                            ipconfig0: "",
+                            tags: MassVmTagsTextBox.Text,
+
+                            // CPU configuration
+                            cpu: "host",
+                            cpuunits: 1000,
+
+                            // System configuration
+                            arch: "x86_64",
+
+                            // Default values for other parameters
+                            hotplug: "1",
+                            scsihw: "virtio-scsi-pci",
+                            template: false,
+
+                            // Empty or null values for optional parameters
+                            description: null,
+                            searchdomain: null,
+                            nameserver: null,
+                            startdate: null,
+                            bootdisk: null,
+
+                            // Dictionary parameters
+                            hostpciN: null,
+                            ideN: null,
+                            ipconfigN: null,
+                            netN: null,
+                            numaN: null,
+                            parallelN: null,
+                            sataN: null,
+                            scsiN: null,
+                            serialN: null,
+                            unusedN: null,
+                            usbN: null,
+                            virtioN: null
+                        );
+
+                        if (result.Success)
+                        {
+                            createdVMs.Add($"{vmName} (ID: {vmId})");
+                        }
+                        else
+                        {
+                            failedVMs.Add((vmName, result.ErrorMessage ?? "Unknown error"));
+                        }
+
+                        // Update progress
+                        MassVmCreationProgressBar.Value++;
+
+                        // Add delay between VM creations
+                        await Task.Delay(2000);
+                    }
+                    catch (Exception ex)
+                    {
+                        failedVMs.Add(($"VM-{i + 1}", ex.Message));
+                        MassVmCreationProgressBar.Value++;
+                    }
+                }
+
+                await RefreshVMList();
+                MassVmCreationProgressBar.Visibility = Visibility.Collapsed;
+
+                // Show detailed summary dialog
+                await ShowDetailedMassCreationSummaryDialog(createdVMs, failedVMs);
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Mass VM Creation Error", ex.Message);
+                MassVmCreationProgressBar.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        private string GenerateRandomLetters(int length)
+        {
+            const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            Random random = new Random();
+            return new string(Enumerable.Repeat(chars, length)
+                .Select(s => s[random.Next(s.Length)]).ToArray());
+        }
+
+        private async Task ShowDetailedMassCreationSummaryDialog(List<string> createdVMs, List<(string Name, string Error)> failedVMs)
+        {
+            StringBuilder summaryBuilder = new StringBuilder();
+            summaryBuilder.AppendLine($"Successfully created VMs: {createdVMs.Count}");
+            summaryBuilder.AppendLine($"Failed VM creations: {failedVMs.Count}");
+
+            if (createdVMs.Any())
+            {
+                summaryBuilder.AppendLine("\nSuccessfully Created VMs:");
+                foreach (var vm in createdVMs)
+                {
+                    summaryBuilder.AppendLine($"- {vm}");
+                }
+            }
+
+            if (failedVMs.Any())
+            {
+                summaryBuilder.AppendLine("\nFailed VMs:");
+                foreach (var (name, error) in failedVMs)
+                {
+                    summaryBuilder.AppendLine($"- {name}");
+                    summaryBuilder.AppendLine($"  Error: {error}");
+                }
+            }
+
+            ContentDialog summaryDialog = new ContentDialog
+            {
+                Title = "Mass VM Creation Summary",
+                Content = new ScrollViewer
+                {
+                    Content = new TextBlock
+                    {
+                        Text = summaryBuilder.ToString(),
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    MaxHeight = 400,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                },
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            await summaryDialog.ShowAsync();
+        }
+
+        private void GroupsListView_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            if (e.ClickedItem is GroupItem clickedGroup)
+            {
+                // Toggle the IsSelected property
+                clickedGroup.IsSelected = !clickedGroup.IsSelected;
+                clickedGroup.GroupId = clickedGroup.GroupId;
+                // You can add additional logic here if needed
+                // For example, you might want to update some UI elements or perform some action
+                // based on the group selection change
+            }
+        }
     }
+
 
     public class ProxMachine
     {
@@ -741,6 +1203,7 @@ namespace ProxmoxApiHelper
             }
         }
 
+      
         public long RAMInMB => RAMInBytes / (1024 * 1024);
 
         public string FormattedUptime
@@ -764,6 +1227,94 @@ namespace ProxmoxApiHelper
         public string CpuUsageText { get; set; }
         public double MemoryUsage { get; set; }
         public string MemoryUsageText { get; set; }
+    }
+
+    public class VmConfig : INotifyPropertyChanged
+    {
+        private string _id;
+        private string _name;
+        private int _cpuCores = 1;
+        private int _memoryMB = 512;
+        private int _diskSizeGB = 8;
+        private string _osType = "Other";
+        private bool _useUefi;
+        private bool _startOnBoot;
+        private bool _enableQemuGuestAgent = true;
+        private string _tags;
+        private string _description;
+
+        public string Id
+        {
+            get => _id;
+            set { _id = value; OnPropertyChanged(); }
+        }
+
+        public string Name
+        {
+            get => _name;
+            set { _name = value; OnPropertyChanged(); }
+        }
+
+        public int CpuCores
+        {
+            get => _cpuCores;
+            set { _cpuCores = value; OnPropertyChanged(); }
+        }
+
+        public int MemoryMB
+        {
+            get => _memoryMB;
+            set { _memoryMB = value; OnPropertyChanged(); }
+        }
+
+        public int DiskSizeGB
+        {
+            get => _diskSizeGB;
+            set { _diskSizeGB = value; OnPropertyChanged(); }
+        }
+
+        public string OsType
+        {
+            get => _osType;
+            set { _osType = value; OnPropertyChanged(); }
+        }
+
+        public bool UseUefi
+        {
+            get => _useUefi;
+            set { _useUefi = value; OnPropertyChanged(); }
+        }
+
+        public bool StartOnBoot
+        {
+            get => _startOnBoot;
+            set { _startOnBoot = value; OnPropertyChanged(); }
+        }
+
+        public bool EnableQemuGuestAgent
+        {
+            get => _enableQemuGuestAgent;
+            set { _enableQemuGuestAgent = value; OnPropertyChanged(); }
+        }
+
+        public string Tags
+        {
+            get => _tags;
+            set { _tags = value; OnPropertyChanged(); }
+        }
+
+        public string Description
+        {
+            get => _description;
+            set { _description = value; OnPropertyChanged(); }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 
     public class StatusToColorConverterProxmox : IValueConverter
@@ -852,6 +1403,30 @@ namespace ProxmoxApiHelper
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+    }
+
+    public class VMItem : INotifyPropertyChanged
+    {
+        private bool _isSelected;
+
+        public string Id { get; set; }
+        public string Name { get; set; }
+        public string Node { get; set; }
+
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set
+            {
+                if (_isSelected != value)
+                {
+                    _isSelected = value;
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsSelected)));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
     }
 
     public class MainPageViewModel : INotifyPropertyChanged

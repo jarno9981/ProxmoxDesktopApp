@@ -12,47 +12,42 @@
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
-    
-    <Grid Padding="20">
-        <StackPanel>
-            <TextBlock Text="Edit User" 
-                       Style="{StaticResource TitleTextBlockStyle}" 
-                       Margin="0,0,0,20"/>
 
-            <TextBox x:Name="UserIdTextBox" 
-                     Header="User ID" 
-                     IsReadOnly="True" 
-                     Margin="0,0,0,10"/>
+    <ScrollViewer>
+        <StackPanel Margin="20">
+            <TextBlock Text="Edit User" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,20"/>
 
-            <TextBox x:Name="EmailTextBox" 
-                     Header="Email" 
-                     Margin="0,0,0,10"/>
+            <TextBox x:Name="UserIdTextBox" Header="User ID" IsReadOnly="True" Margin="0,0,0,10"/>
+            <TextBox x:Name="EmailTextBox" Header="Email" Margin="0,0,0,10"/>
+            <PasswordBox x:Name="PasswordBox" Header="Password" Margin="0,0,0,10" PlaceholderText="Enter new password (leave blank to keep current)"/>
+            <CheckBox x:Name="EnabledCheckBox" Content="Enabled" Margin="0,0,0,10"/>
+            <TextBox x:Name="FirstNameTextBox" Header="First Name" Margin="0,0,0,10"/>
+            <TextBox x:Name="LastNameTextBox" Header="Last Name" Margin="0,0,0,10"/>
+            <TextBox x:Name="CommentTextBox" Header="Comment" Margin="0,0,0,10"/>
+            <DatePicker x:Name="ExpiryDatePicker" Header="Expiry Date" Margin="0,0,0,10"/>
+            <TextBox x:Name="KeysTextBox" Header="Two-Factor Auth Keys" Margin="0,0,0,10"/>
 
-            <CheckBox x:Name="EnabledCheckBox" 
-                     Content="Enabled" 
-                     Margin="0,0,0,10"/>
+            <TextBlock Text="Groups" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,10"/>
+            <ListView x:Name="GroupsListView" Height="150" Margin="0,0,0,10">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <CheckBox Content="{Binding GroupId}" IsChecked="{Binding IsSelected, Mode=TwoWay}" />
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
 
-            <CalendarDatePicker x:Name="ExpiryDatePicker" 
-                               Header="Account Expiry Date"
-                               Margin="0,0,0,20"/>
+            <TextBlock Text="Tokens" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,10,0,10"/>
+            <ListView x:Name="TokensListView" Height="100" Margin="0,0,0,20">
+                <ListView.ItemTemplate>
+                    <DataTemplate>
+                        <TextBlock Text="{Binding Name}"/>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
 
-            <TextBlock Text="Group Membership" 
-                       Style="{StaticResource SubtitleTextBlockStyle}" 
-                       Margin="0,0,0,10"/>
+            <CheckBox x:Name="AppendCheckBox" Content="Append values instead of replacing" Margin="0,0,0,10"/>
 
-            <ScrollViewer Height="200" 
-                         Margin="0,0,0,20"
-                         BorderBrush="{ThemeResource SystemControlForegroundBaseMediumLowBrush}"
-                         BorderThickness="1"
-                         Padding="10">
-                <StackPanel x:Name="GroupsStackPanel"/>
-            </ScrollViewer>
-
-            <Button x:Name="SaveButton" 
-                    Content="Save" 
-                    Click="SaveButton_Click"
-                    Style="{StaticResource AccentButtonStyle}"
-                    HorizontalAlignment="Right"/>
+            <Button Content="Save" Click="SaveButton_Click" HorizontalAlignment="Right"/>
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </Window>

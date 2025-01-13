@@ -9,7 +9,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <None Remove="CreateGroupWindow.xaml" />
+    <None Remove="CreateGroup.xaml" />
     <None Remove="CreateUserWindow.xaml" />
     <None Remove="EditGroupWindow.xaml" />
     <None Remove="EditUserWindow.xaml" />
@@ -24,7 +24,7 @@
     <None Update="apiwindowlogo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <Page Update="CreateGroupWindow.xaml">
+    <Page Update="CreateGroup.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
     <Page Update="EditGroupWindow.xaml">

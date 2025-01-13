@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using System.Linq;
 using System.IO;
 using ProxmoxApiHelper.Helpers;
+using System.Text.Json.Serialization;
 
 namespace ProxmoxApiHelper
 {
@@ -135,6 +136,223 @@ namespace ProxmoxApiHelper
             // In a real implementation, you might want to save this data to a file or database
             // For this example, we'll just log it
             Console.WriteLine($"Fetched and saved data: {JsonSerializer.Serialize(allData)}");
+        }
+
+        private async Task<int> GetNextVMID()
+        {
+            // Implement logic to get the next available VMID
+            // This could involve querying the Proxmox API for existing VMIDs and finding the next available one
+            // For now, we'll use a placeholder implementation
+            Random rnd = new Random();
+            return rnd.Next(125, 9999);
+        }
+        public async Task<List<Result>> CreateMultipleVMsAsync(
+       string node,
+       string storage,
+       int vmCount,
+       string disktype = null,
+       int diskSize = 0,
+       bool? acpi = null,
+       string affinity = null,
+       string agent = null,
+       string amd_sev = null,
+       string arch = null,
+       string archive = null,
+       string args = null,
+       string audio0 = null,
+       bool? autostart = null,
+       string balloon = null,
+       string bios = null,
+       string boot = null,
+       string bootdisk = null,
+       int? bwlimit = null,
+       string cicustom = null,
+       string cipassword = null,
+       string citype = null,
+       bool? ciupgrade = null,
+       string ciuser = null,
+       int? cores = null,
+       string cpu = null,
+       float? cpulimit = null,
+       int? cpuunits = null,
+       string description = null,
+       string efidisk0 = null,
+       bool? force = null,
+       bool? freeze = null,
+       string hookscript = null,
+       IDictionary<int, string> hostpciN = null,
+       string hotplug = null,
+       string hugepages = null,
+       IDictionary<int, string> ideN = null,
+       string import_working_storage = null,
+       IDictionary<int, string> ipconfigN = null,
+       string ivshmem = null,
+       bool? keephugepages = null,
+       string keyboard = null,
+       bool? kvm = null,
+       bool? live_restore = null,
+       bool? localtime = null,
+       string lock_ = null,
+       string machine = null,
+       string memory = null,
+       float? migrate_downtime = null,
+       int? migrate_speed = null,
+       string name = null,
+       string nameserver = null,
+       IDictionary<int, string> netN = null,
+       bool? numa = null,
+       IDictionary<int, string> numaN = null,
+       bool? onboot = null,
+       string ostype = null,
+       IDictionary<int, string> parallelN = null,
+       string pool = null,
+       bool? protection = null,
+       bool? reboot = null,
+       string rng0 = null,
+       IDictionary<int, string> sataN = null,
+       IDictionary<int, string> scsiN = null,
+       string scsihw = null,
+       string searchdomain = null,
+       IDictionary<int, string> serialN = null,
+       int? shares = null,
+       string smbios1 = null,
+       int? smp = null,
+       int? sockets = null,
+       string spice_enhancements = null,
+       string sshkeys = null,
+       bool? start = null,
+       string startdate = null,
+       string storage_ = null,
+       bool? tablet = null,
+       string tags = null,
+       bool? tdf = null,
+       bool? template = null,
+       string tpmstate0 = null,
+       bool? unique = null,
+       IDictionary<int, string> unusedN = null,
+       IDictionary<int, string> usbN = null,
+       int? vcpus = null,
+       string vga = null,
+       IDictionary<int, string> virtioN = null,
+       string vmgenid = null,
+       string vmstatestorage = null,
+       string watchdog = null,
+       string iso = null,
+       string net0 = null,
+       string ipconfig0 = null)
+        {
+            if (vmCount < 1 || vmCount > 5)
+            {
+                throw new ArgumentException("VM count must be between 1 and 5.");
+            }
+
+            List<Result> results = new List<Result>();
+            List<Task<Result>> tasks = new List<Task<Result>>();
+
+            for (int i = 0; i < vmCount; i++)
+            {
+                int vmid = await GetNextVMID();
+                string vmName = string.IsNullOrEmpty(name) ? $"VM-{vmid}" : $"{name}-{i + 1}";
+
+                tasks.Add(CreateVMAsync(
+                    node: node,
+                    vmid: vmid,
+                    storage: storage,
+                    disktype: disktype,
+                    diskSize: diskSize,
+                    acpi: acpi,
+                    affinity: affinity,
+                    agent: agent,
+                    amd_sev: amd_sev,
+                    arch: arch,
+                    archive: archive,
+                    args: args,
+                    audio0: audio0,
+                    autostart: autostart,
+                    balloon: balloon,
+                    bios: bios,
+                    boot: boot,
+                    bootdisk: bootdisk,
+                    bwlimit: bwlimit,
+                    cicustom: cicustom,
+                    cipassword: cipassword,
+                    citype: citype,
+                    ciupgrade: ciupgrade,
+                    ciuser: ciuser,
+                    cores: cores,
+                    cpu: cpu,
+                    cpulimit: cpulimit,
+                    cpuunits: cpuunits,
+                    description: description,
+                    efidisk0: efidisk0,
+                    force: force,
+                    freeze: freeze,
+                    hookscript: hookscript,
+                    hostpciN: hostpciN,
+                    hotplug: hotplug,
+                    hugepages: hugepages,
+                    ideN: ideN,
+                    import_working_storage: import_working_storage,
+                    ipconfigN: ipconfigN,
+                    ivshmem: ivshmem,
+                    keephugepages: keephugepages,
+                    keyboard: keyboard,
+                    kvm: kvm,
+                    live_restore: live_restore,
+                    localtime: localtime,
+                    lock_: lock_,
+                    machine: machine,
+                    memory: memory,
+                    migrate_downtime: migrate_downtime,
+                    migrate_speed: migrate_speed,
+                    name: vmName,
+                    nameserver: nameserver,
+                    netN: netN,
+                    numa: numa,
+                    numaN: numaN,
+                    onboot: onboot,
+                    ostype: ostype,
+                    parallelN: parallelN,
+                    pool: pool,
+                    protection: protection,
+                    reboot: reboot,
+                    rng0: rng0,
+                    sataN: sataN,
+                    scsiN: scsiN,
+                    scsihw: scsihw,
+                    searchdomain: searchdomain,
+                    serialN: serialN,
+                    shares: shares,
+                    smbios1: smbios1,
+                    smp: smp,
+                    sockets: sockets,
+                    spice_enhancements: spice_enhancements,
+                    sshkeys: sshkeys,
+                    start: start,
+                    startdate: startdate,
+                    storage_: storage_,
+                    tablet: tablet,
+                    tags: tags,
+                    tdf: tdf,
+                    template: template,
+                    tpmstate0: tpmstate0,
+                    unique: unique,
+                    unusedN: unusedN,
+                    usbN: usbN,
+                    vcpus: vcpus,
+                    vga: vga,
+                    virtioN: virtioN,
+                    vmgenid: vmgenid,
+                    vmstatestorage: vmstatestorage,
+                    watchdog: watchdog,
+                    iso: iso,
+                    net0: net0,
+                    ipconfig0: ipconfig0
+                ));
+            }
+
+            results = (await Task.WhenAll(tasks)).ToList();
+            return results;
         }
 
         public async Task<Result> CreateVMAsync(
@@ -501,8 +719,62 @@ namespace ProxmoxApiHelper
             return allNetworks;
         }
 
-        
+        public async Task<bool> CreateGroupAsync(string groupId, string comment)
+        {
+            if (string.IsNullOrEmpty(groupId))
+                throw new ArgumentException("Group ID cannot be empty", nameof(groupId));
 
+            try
+            {
+                var parameters = new Dictionary<string, string>
+                {
+                    ["groupid"] = groupId
+                };
+
+                if (!string.IsNullOrEmpty(comment))
+                    parameters["comment"] = comment;
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PostAsync("/api2/json/access/groups", content));
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to create group: {ex.Message}");
+            }
+        }
+
+        public async Task<bool> AddUserToGroupAsync(UserConfig user, string groupId)
+        {
+            if (user == null || string.IsNullOrEmpty(groupId))
+                throw new ArgumentException("User and Group ID cannot be empty");
+
+            try
+            {
+                var currentGroups = user.Groups ?? new List<string>();
+                if (!currentGroups.Contains(groupId))
+                {
+                    currentGroups.Add(groupId);
+                }
+
+                var parameters = new Dictionary<string, string>
+                {
+                    ["groups"] = string.Join(",", currentGroups)
+                };
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PutAsync($"/api2/json/access/users/{Uri.EscapeDataString(user.Email)}", content));
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to add user to group: {ex.Message}");
+            }
+        }
         public async Task<List<string>> GetUsersAsync()
         {
             try
@@ -636,34 +908,376 @@ namespace ProxmoxApiHelper
             return response.IsSuccessStatusCode;
         }
 
-        public async Task<Dictionary<string, object>> GetUserConfigAsync(string userId)
+        public async Task<Dictionary<string, JsonElement>> GetUserConfigAsync(string userId)
         {
             try
             {
-                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/access/users/{userId}"));
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/access/users/{Uri.EscapeDataString(userId)}"));
+
+                response.EnsureSuccessStatusCode();
+                var content = await response.Content.ReadAsStringAsync();
+                var jsonResponse = JsonSerializer.Deserialize<JsonElement>(content);
+
+                if (jsonResponse.TryGetProperty("data", out var data))
+                {
+                    return JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(data.ToString());
+                }
+
+                throw new Exception("No data found in response");
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to get user configuration: {ex.Message}");
+            }
+        }
+
+
+
+        public async Task<Dictionary<string, object>> GetPoolAsync(string poolId)
+        {
+            if (string.IsNullOrEmpty(poolId))
+            {
+                throw new ArgumentNullException(nameof(poolId));
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/pools/{poolId}"));
                 var responseBody = await response.Content.ReadAsStringAsync();
                 var jsonDocument = JsonDocument.Parse(responseBody);
                 var data = jsonDocument.RootElement.GetProperty("data");
 
-                var userDict = new Dictionary<string, object>();
+                var poolDict = new Dictionary<string, object>();
                 foreach (var property in data.EnumerateObject())
                 {
-                    // Special handling for boolean values
-                    if (property.Name == "enable")
+                    if (property.Name == "members")
                     {
-                        userDict[property.Name] = property.Value.ValueKind == JsonValueKind.True;
+                        var membersList = new List<string>();
+                        foreach (var member in property.Value.EnumerateArray())
+                        {
+                            membersList.Add(member.GetString());
+                        }
+                        poolDict[property.Name] = membersList;
                     }
                     else
                     {
-                        userDict[property.Name] = property.Value.GetString() ?? "";
+                        poolDict[property.Name] = property.Value.GetString();
                     }
                 }
 
-                return userDict;
+                return poolDict;
             }
             catch (Exception ex)
             {
-                throw new Exception($"Failed to retrieve user {userId}", ex);
+                throw new Exception($"Failed to retrieve pool {poolId}", ex);
+            }
+        }
+
+        public class PoolMember
+        {
+            public int VmId { get; set; }
+            public long Memory { get; set; }
+            public double Cpu { get; set; }
+            public long NetIn { get; set; }
+            public long NetOut { get; set; }
+            public long DiskRead { get; set; }
+            public long DiskWrite { get; set; }
+            public string Id { get; set; }
+            public string Type { get; set; }
+            public string Status { get; set; }
+            public int Template { get; set; }
+            public string Node { get; set; }
+            public long Uptime { get; set; }
+            public long MaxMemory { get; set; }
+            public int MaxCpu { get; set; }
+            public long Disk { get; set; }
+            public long MaxDisk { get; set; }
+            public string Name { get; set; }
+        }
+
+        public class ResourcePool
+        {
+            public string PoolId { get; set; }
+            public string Comment { get; set; }
+            public List<PoolMember> Members { get; set; }
+        }
+
+        public async Task GetPoolDetailsAsync(string poolId)
+        {
+            if (string.IsNullOrEmpty(poolId))
+            {
+                Console.WriteLine("Pool ID cannot be null or empty.");
+                return;
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/pools/{poolId}"));
+                response.EnsureSuccessStatusCode();
+                var responseBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Raw response for pool {poolId}: {responseBody}");
+
+                var jsonDocument = JsonDocument.Parse(responseBody);
+
+                if (jsonDocument.RootElement.TryGetProperty("data", out var data))
+                {
+                    var options = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true
+                    };
+
+                    try
+                    {
+                        var pool = JsonSerializer.Deserialize<ResourcePool>(data.GetRawText(), options);
+                        if (pool != null)
+                        {
+                            Console.WriteLine($"Successfully deserialized pool details for {poolId}");
+                            Console.WriteLine($"Pool ID: {pool.PoolId}");
+                            Console.WriteLine($"Comment: {pool.Comment}");
+                            Console.WriteLine($"Number of members: {pool.Members?.Count ?? 0}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"Failed to deserialize pool details for {poolId}. Deserialized object is null.");
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        Console.WriteLine($"JSON Exception while deserializing pool details for {poolId}: {ex.Message}");
+                        Console.WriteLine($"Raw JSON: {data.GetRawText()}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to retrieve pool details for {poolId}: Data not found in the response.");
+                    Console.WriteLine($"Raw response: {responseBody}");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"HTTP request failed while retrieving pool details for {poolId}: {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error occurred while retrieving pool details for {poolId}: {ex.Message}");
+            }
+        }
+
+        public async Task<ApiResponse<dynamic>> UpdateResourcePoolAsync(string poolId, string comment = null, List<string> vms = null, bool allowMove = false)
+        {
+          
+
+            try
+            {
+                var parameters = new Dictionary<string, string>();
+
+                // Add optional parameters if they are provided
+                if (!string.IsNullOrEmpty(comment))
+                {
+                    parameters.Add("comment", comment);
+                }
+
+                if (vms != null && vms.Any())
+                {
+                    parameters.Add("vms", string.Join(",", vms));
+                }
+
+                if (allowMove)
+                {
+                    parameters.Add("allow-move", "1");
+                }
+
+                var response = await SendRequestWithRetryAsync(() =>
+                {
+                    var content = new FormUrlEncodedContent(parameters);
+                    return _httpClient.PutAsync($"/api2/json/pools/{poolId}", content);
+                });
+
+                response.EnsureSuccessStatusCode();
+                var responseBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Update pool response: {responseBody}");
+
+                var jsonDocument = JsonDocument.Parse(responseBody);
+
+                if (jsonDocument.RootElement.TryGetProperty("data", out var data))
+                {
+                    return new ApiResponse<dynamic>
+                    {
+                        Data = data
+                    };
+                }
+                else
+                {
+                    return new ApiResponse<dynamic>
+                    {
+                    };
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"HTTP request failed while updating pool {poolId}: {ex.Message}");
+                return new ApiResponse<dynamic>
+                {
+                  
+                };
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"Failed to parse JSON response while updating pool {poolId}: {ex.Message}");
+                return new ApiResponse<dynamic>
+                {
+
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error occurred while updating pool {poolId}: {ex.Message}");
+                return new ApiResponse<dynamic>
+                {
+                    
+                };
+            }
+        }
+
+        public async Task<List<ResourcePool>> GetResourcePoolsAsync()
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync("/api2/json/pools"));
+                response.EnsureSuccessStatusCode();
+                var responseBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Raw response for pools: {responseBody}");
+
+                var jsonDocument = JsonDocument.Parse(responseBody);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var pools = new List<ResourcePool>();
+                foreach (var poolElement in data.EnumerateArray())
+                {
+                    var pool = new ResourcePool
+                    {
+                        PoolId = poolElement.GetProperty("poolid").GetString(),
+                        Comment = poolElement.TryGetProperty("comment", out var commentProperty) ? commentProperty.GetString() : null,
+                        Members = new List<PoolMember>()
+                    };
+
+                    if (poolElement.TryGetProperty("members", out var membersProperty))
+                    {
+                        foreach (var member in membersProperty.EnumerateArray())
+                        {
+                            var poolMember = new PoolMember
+                            {
+                                Id = member.GetProperty("id").GetString(),
+                                Type = member.GetProperty("type").GetString()
+                                // Add other properties as needed
+                            };
+                            pool.Members.Add(poolMember);
+                        }
+                    }
+
+                    pools.Add(pool);
+                }
+
+                Console.WriteLine($"Successfully retrieved {pools.Count} pools");
+                return pools;
+            }
+            catch (HttpRequestException ex)
+            {
+                Console.WriteLine($"HTTP request failed while retrieving pools: {ex.Message}");
+                return new List<ResourcePool>();
+            }
+            catch (JsonException ex)
+            {
+                Console.WriteLine($"JSON parsing error while retrieving pools: {ex.Message}");
+                return new List<ResourcePool>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unexpected error occurred while retrieving pools: {ex.Message}");
+                return new List<ResourcePool>();
+            }
+        }
+
+
+        public async Task<bool> CreatePoolAsync(string poolId, string comment = null)
+        {
+            if (string.IsNullOrEmpty(poolId))
+            {
+                throw new ArgumentNullException(nameof(poolId));
+            }
+
+            try
+            {
+                var parameters = new Dictionary<string, string>
+                {
+                    ["poolid"] = poolId
+                };
+
+                if (!string.IsNullOrEmpty(comment))
+                {
+                    parameters["comment"] = comment;
+                }
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() => _httpClient.PostAsync("/api2/json/pools", content));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to create pool {poolId}", ex);
+            }
+        }
+
+        public async Task<bool> UpdatePoolAsync(string poolId, Dictionary<string, object> poolData)
+        {
+            if (string.IsNullOrEmpty(poolId))
+            {
+                throw new ArgumentNullException(nameof(poolId));
+            }
+
+            try
+            {
+                var parameters = new Dictionary<string, string>();
+
+                if (poolData.TryGetValue("comment", out var comment))
+                {
+                    parameters["comment"] = comment.ToString();
+                }
+
+                if (poolData.TryGetValue("members", out var members))
+                {
+                    if (members is List<string> membersList)
+                    {
+                        parameters["members"] = string.Join(",", membersList);
+                    }
+                }
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() => _httpClient.PutAsync($"/api2/json/pools/{poolId}", content));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to update pool {poolId}", ex);
+            }
+        }
+
+        public async Task<bool> DeletePoolAsync(string poolId)
+        {
+            if (string.IsNullOrEmpty(poolId))
+            {
+                throw new ArgumentNullException(nameof(poolId));
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() => _httpClient.DeleteAsync($"/api2/json/pools/{poolId}"));
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Failed to delete pool {poolId}", ex);
             }
         }
 
@@ -685,21 +1299,102 @@ namespace ProxmoxApiHelper
 
             return response.IsSuccessStatusCode;
         }
-
         public async Task<bool> UpdateUserAsync(string userid, UserConfig config)
         {
             if (string.IsNullOrEmpty(userid))
                 throw new ArgumentException("User ID cannot be empty", nameof(userid));
 
-            var parameters = new Dictionary<string, string>();
-            AddUserConfigParameters(parameters, config);
+            if (!userid.Contains("@"))
+                throw new ArgumentException("User ID must be in the format 'name@realm'", nameof(userid));
 
-            var content = new FormUrlEncodedContent(parameters);
-            var response = await SendRequestWithRetryAsync(() =>
-                _httpClient.PutAsync($"/api2/json/access/users/{userid}", content));
+            try
+            {
+                var parameters = new Dictionary<string, string>();
 
-            return response.IsSuccessStatusCode;
+                // Required field validation
+                if (string.IsNullOrEmpty(userid))
+                    throw new ArgumentException("User ID is required", nameof(userid));
+
+                // Optional fields - only add if they have values
+                if (!string.IsNullOrEmpty(config.Email))
+                    parameters.Add("email", config.Email);
+
+                // Enable is a special case - it's boolean but needs to be "1" or "0"
+                parameters.Add("enable", config.Enable ? "1" : "0");
+
+                if (!string.IsNullOrEmpty(config.Firstname))
+                    parameters.Add("firstname", config.Firstname);
+
+                if (!string.IsNullOrEmpty(config.Lastname))
+                    parameters.Add("lastname", config.Lastname);
+
+                if (!string.IsNullOrEmpty(config.Comment))
+                    parameters.Add("comment", config.Comment);
+
+                // Expire is an integer representing Unix timestamp
+                if (config.Expire.HasValue && config.Expire.Value >= 0)
+                    parameters.Add("expire", config.Expire.Value.ToString());
+
+                // Groups should be comma-separated
+                if (config.Groups != null && config.Groups.Any())
+                    parameters.Add("groups", string.Join(",", config.Groups));
+
+                // Keys for two-factor auth (if provided)
+                if (!string.IsNullOrEmpty(config.Keys))
+                {
+                    if (!IsValidYubicoKey(config.Keys))
+                        throw new ArgumentException("Invalid Yubico key format. Must be alphanumeric and special characters !=, length 0-4096", nameof(config.Keys));
+
+                    parameters.Add("keys", config.Keys);
+                }
+
+                // Append parameter (if provided)
+                if (config.Append.HasValue)
+                    parameters.Add("append", config.Append.Value ? "1" : "0");
+
+                var content = new FormUrlEncodedContent(parameters);
+
+                // Add retry logic with exponential backoff
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PutAsync($"/api2/json/access/users/{Uri.EscapeDataString(userid)}", content));
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    throw new ProxmoxApiException($"Failed to update user. Status: {response.StatusCode}, Error: {errorContent}");
+                }
+
+                return true;
+            }
+            catch (HttpRequestException ex)
+            {
+                throw new ProxmoxApiException($"Network error while updating user: {ex.Message}", ex);
+            }
+            catch (ProxmoxApiException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new ProxmoxApiException($"Unexpected error while updating user: {ex.Message}", ex);
+            }
         }
+
+        private bool IsValidYubicoKey(string key)
+        {
+            if (key.Length > 4096)
+                return false;
+
+            // Check if the key contains only allowed characters: alphanumeric and != symbols
+            return key.All(c => char.IsLetterOrDigit(c) || c == '!' || c == '=');
+        }
+
+        public class ProxmoxApiException : Exception
+        {
+            public ProxmoxApiException(string message) : base(message) { }
+            public ProxmoxApiException(string message, Exception innerException) : base(message, innerException) { }
+        }
+
 
         public async Task<bool> DeleteUserAsync(string userid)
         {
@@ -712,37 +1407,43 @@ namespace ProxmoxApiHelper
             return response.IsSuccessStatusCode;
         }
 
-      
+
         private void AddUserConfigParameters(Dictionary<string, string> parameters, UserConfig config)
         {
             if (config == null) return;
 
-            if (!string.IsNullOrEmpty(config.Comment))
-                parameters["comment"] = config.Comment;
-
             if (!string.IsNullOrEmpty(config.Email))
                 parameters["email"] = config.Email;
 
-            if (config.Enable.HasValue)
-                parameters["enable"] = config.Enable.Value ? "1" : "0";
-
-            if (config.Expire.HasValue)
-                parameters["expire"] = config.Expire.Value.ToString();
+            parameters["enable"] = config.Enable ? "1" : "0";
 
             if (!string.IsNullOrEmpty(config.Firstname))
                 parameters["firstname"] = config.Firstname;
 
-            if (config.Groups != null && config.Groups.Any())
+            if (!string.IsNullOrEmpty(config.Lastname))
+                parameters["lastname"] = config.Lastname;
+
+            if (!string.IsNullOrEmpty(config.Comment))
+                parameters["comment"] = config.Comment;
+
+            if (config.Expire.HasValue)
+                parameters["expire"] = config.Expire.Value.ToString();
+
+            if (config.Groups != null)
+            {
                 parameters["groups"] = string.Join(",", config.Groups);
+            }
+            else
+            {
+                parameters["groups"] = "";
+            }
+
+            if (!string.IsNullOrEmpty(config.Password))
+                parameters["password"] = config.Password;
 
             if (!string.IsNullOrEmpty(config.Keys))
                 parameters["keys"] = config.Keys;
 
-            if (!string.IsNullOrEmpty(config.Lastname))
-                parameters["lastname"] = config.Lastname;
-
-            if (!string.IsNullOrEmpty(config.Password))
-                parameters["password"] = config.Password;
         }
 
         public async Task<List<Dictionary<string, object>>> GetGroupsAsync()
@@ -802,34 +1503,7 @@ namespace ProxmoxApiHelper
             }
         }
 
-        public async Task<bool> CreateGroupAsync(string groupId, string comment = null)
-        {
-            if (string.IsNullOrEmpty(groupId))
-            {
-                throw new ArgumentNullException(nameof(groupId), "Group ID cannot be null or empty.");
-            }
-
-            try
-            {
-                var parameters = new Dictionary<string, string>
-                {
-                    ["groupid"] = groupId
-                };
-
-                if (!string.IsNullOrEmpty(comment))
-                {
-                    parameters["comment"] = comment;
-                }
-
-                var content = new FormUrlEncodedContent(parameters);
-                var response = await SendRequestWithRetryAsync(() => _httpClient.PostAsync("/api2/json/access/groups", content));
-                return response.IsSuccessStatusCode;
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Failed to create group {groupId}", ex);
-            }
-        }
+      
 
         public async Task<bool> UpdateGroupAsync(string groupId, Dictionary<string, object> updatedGroupData)
         {

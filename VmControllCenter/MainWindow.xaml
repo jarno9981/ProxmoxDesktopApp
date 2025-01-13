@@ -23,11 +23,11 @@
                     <ComboBoxItem Content="ESXi"/>
                 </ComboBox>
 
-                <TextBox x:Name="UrlTextBox" Text="https://ip-here:8006/" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
+                <TextBox x:Name="UrlTextBox" Text="https://10.7.220.15:8006/" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
 
-                <TextBox x:Name="UsernameTextBox" Header="Username" PlaceholderText="Enter username" Margin="0,0,0,16"/>
+                <TextBox x:Name="UsernameTextBox" Text="root" Header="Username" PlaceholderText="Enter username" Margin="0,0,0,16"/>
 
-                <PasswordBox x:Name="PasswordBox" Header="Password" PlaceholderText="Enter password" Margin="0,0,0,24"/>
+                <PasswordBox x:Name="PasswordBox" Password="@!9DX9zhk92!@" Header="Password" PlaceholderText="Enter password" Margin="0,0,0,24"/>
 
                 <Button x:Name="LoginButton" Content="Login" Click="LoginButton_Click" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
 
