@@ -674,43 +674,157 @@
                     </StackPanel>
                 </Grid>
 
-
                 <!-- Server Stats Panel -->
                 <Grid x:Name="ServerStatsPanelProxmox" Visibility="Collapsed" Margin="24">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0" Text="Server Statistics" Style="{StaticResource TitleLargeTextBlockStyle}" Margin="0,0,0,16" />
+                    <Grid Grid.Row="0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
 
-                    <ScrollViewer Grid.Row="1">
+                        <TextBlock Grid.Column="0" Text="Server Statistics" Style="{StaticResource TitleLargeTextBlockStyle}" VerticalAlignment="Center" />
+
+                        <Button Grid.Column="1" x:Name="RefreshStats" Margin="0,0,8,0" Click="RefreshStats_Click">
+                            <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE72C;"/>
+                        </Button>
+
+                        <Button Grid.Column="2" x:Name="SettingsButton">
+                            <FontIcon FontFamily="Segoe MDL2 Assets" Glyph="&#xE713;"/>
+                            <Button.Flyout>
+                                <Flyout>
+                                    <StackPanel>
+                                        <TextBlock Text="Refresh Interval (seconds)" Margin="0,0,0,8"/>
+                                        <NumberBox x:Name="RefreshIntervalNumberBox" 
+                                   Minimum="1" 
+                                   Maximum="60" 
+                                   SpinButtonPlacementMode="Compact"
+                                   ValueChanged="RefreshIntervalNumberBox_ValueChanged"/>
+                                        <Button x:Name="SaveSettingsButton" 
+                                Content="Save" 
+                                Click="SaveSettingsButton_Click"
+                                HorizontalAlignment="Right"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </Grid>
+
+                    <TextBlock Grid.Row="1" x:Name="LastUpdateTextBlock" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,8,0,16"/>
+
+                    <ScrollViewer Grid.Row="2">
                         <ItemsControl x:Name="ServerStatsItemsControlProxmox">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <ItemsWrapGrid Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="local:ServerStatProxmox">
-                                    <Grid Margin="0,0,0,16" Padding="16">
+                                <DataTemplate x:DataType="helpers:ServerStatProxmox">
+                                    <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" 
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" 
+                    BorderThickness="1" 
+                    CornerRadius="8" 
+                    Margin="0,0,16,16" 
+                    Padding="16" 
+                    Width="300">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
                                                 <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
                                             </Grid.RowDefinitions>
-                                            <TextBlock Text="{x:Bind HostName}" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,0,0,8" />
-                                            <Grid Grid.Row="1" Margin="0,0,0,8">
-                                                <ProgressBar Value="{x:Bind CpuUsage}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
-                                                <TextBlock Text="{x:Bind CpuUsageText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding HostName}" 
+                               Style="{StaticResource SubtitleTextBlockStyle}" 
+                               Margin="0,0,0,8" />
+
+                                            <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                                <TextBlock Text="VMs: " 
+                                   Style="{StaticResource BodyTextBlockStyle}" 
+                                   Margin="0,0,4,0"/>
+                                                <TextBlock Text="{Binding VmCount}" 
+                                   Style="{StaticResource BodyTextBlockStyle}" 
+                                   FontWeight="SemiBold"/>
+                                            </StackPanel>
+
+                                            <Grid Grid.Row="2" Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="CPU" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
+                                                <ProgressBar Grid.Column="1" 
+                                     Value="{Binding CpuUsage}" 
+                                     Maximum="100" 
+                                     Foreground="{ThemeResource SystemControlHighlightAccentBrush}" 
+                                     Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" 
+                                     Margin="8,0" />
+                                                <TextBlock Grid.Column="2" 
+                                   Text="{Binding CpuUsageText}" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
                                             </Grid>
-                                            <Grid Grid.Row="2">
-                                                <ProgressBar Value="{x:Bind MemoryUsage}" Maximum="100" Foreground="{ThemeResource SystemControlHighlightAltAccentBrush}" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" />
-                                                <TextBlock Text="{x:Bind MemoryUsageText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" />
+
+                                            <Grid Grid.Row="3" Margin="0,0,0,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="RAM" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
+                                                <ProgressBar Grid.Column="1" 
+                                     Value="{Binding MemoryUsage}" 
+                                     Maximum="100" 
+                                     Foreground="{ThemeResource SystemControlHighlightAltAccentBrush}" 
+                                     Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" 
+                                     Margin="8,0" />
+                                                <TextBlock Grid.Column="2" 
+                                   Text="{Binding MemoryUsageText}" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Grid Grid.Row="4">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="Storage" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
+                                                <ProgressBar Grid.Column="1" 
+                                     Value="{Binding StorageUsage}" 
+                                     Maximum="100" 
+                                     Foreground="{ThemeResource SystemControlHighlightChromeAltLowBrush}" 
+                                     Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" 
+                                     Margin="8,0" />
+                                                <TextBlock Grid.Column="2" 
+                                   Text="{Binding StorageUsageText}" 
+                                   Style="{StaticResource CaptionTextBlockStyle}" 
+                                   VerticalAlignment="Center" />
                                             </Grid>
                                         </Grid>
-                                    </Grid>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
+
 
                 <Grid x:Name="ManagePoolsPanel" Margin="24" Visibility="Collapsed">
                     <Grid.RowDefinitions>

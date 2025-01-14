@@ -19,6 +19,7 @@ using System.Text;
 using System.Text.Json;
 using System.Net.NetworkInformation;
 using NetworkInterface = ProxmoxApiHelper.Helpers.NetworkInterface;
+using Windows.Storage;
 
 namespace ProxmoxApiHelper
 {
@@ -33,6 +34,9 @@ namespace ProxmoxApiHelper
         private ObservableCollection<NetworkInterface> NetworkInterfaces { get; set; }
         private string _currentNode;
 
+        private DispatcherTimer _serverStatsTimer;
+        private bool _isServerStatsPanelVisible;
+        private ApplicationDataContainer _localSettings;
 
         public MainPageViewModel ViewModel { get; }
 
@@ -44,9 +48,20 @@ namespace ProxmoxApiHelper
             _massVmConfigs = new ObservableCollection<VmConfig>();
             ViewModel = new MainPageViewModel();
             NetworkInterfaces = new ObservableCollection<NetworkInterface>();
+            SettingsManager.CurrentSettings.RefreshInterval = SettingsManager.CurrentSettings.RefreshInterval == 0 ? 5 : SettingsManager.CurrentSettings.RefreshInterval;
 
+            RefreshIntervalNumberBox.Value = SettingsManager.CurrentSettings.RefreshInterval;
+            InitializeServerStatsTimer(); // Initialize the timer
+            this.Closed += WindowProxmox_Closed;
             InitializeAsync();
             TitleTop();
+        }
+
+        private void WindowProxmox_Closed(object sender, WindowEventArgs args)
+        {
+            StopServerStatsTimer();
+            _serverStatsTimer = null;
+            SaveSettings();
         }
 
         private void AvailableVMsListView_ItemClick(object sender, ItemClickEventArgs e)
@@ -499,6 +514,9 @@ namespace ProxmoxApiHelper
             UsersGroups.Visibility = Visibility.Collapsed;
             ManagePoolsPanel.Visibility = Visibility.Collapsed;
 
+            StopServerStatsTimer();
+         
+
             switch (navItemTag)
             {
                 case "dashboard":
@@ -515,7 +533,8 @@ namespace ProxmoxApiHelper
                     break;
                 case "server_stats":
                     ServerStatsPanelProxmox.Visibility = Visibility.Visible;
-
+                    LoadServerStats(); // Initial load
+                    StartServerStatsTimer();
                     break;
                 case "manage_pools":
                     ManagePoolsPanel.Visibility = Visibility.Visible;
@@ -673,35 +692,7 @@ namespace ProxmoxApiHelper
         }
 
        
-        private async Task LoadServerStats()
-        {
-            try
-            {
-                var nodes = await _proxmoxClient.GetNodesAsync();
-                var serverStats = new ObservableCollection<ServerStatProxmox>();
-
-                foreach (var node in nodes)
-                {
-                    var nodeName = node["node"].ToString();
-                    var nodeStatus = await _proxmoxClient.GetNodeStatusAsync(nodeName);
-
-                    serverStats.Add(new ServerStatProxmox
-                    {
-                        HostName = nodeName,
-                        CpuUsage = Convert.ToDouble(nodeStatus["cpu"]) * 100,
-                        CpuUsageText = $"{Convert.ToDouble(nodeStatus["cpu"]) * 100:F1}%",
-                        MemoryUsage = (Convert.ToDouble(nodeStatus["memory"]["used"]) / Convert.ToDouble(nodeStatus["memory"]["total"])) * 100,
-                        MemoryUsageText = $"{(Convert.ToDouble(nodeStatus["memory"]["used"]) / Convert.ToDouble(nodeStatus["memory"]["total"])) * 100:F1}%"
-                    });
-                }
-
-                ServerStatsItemsControlProxmox.ItemsSource = serverStats;
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorDialog("Server Stats Error", $"Failed to load server stats: {ex.Message}");
-            }
-        }
+       
 
         private async Task ShowErrorDialog(string title, string message)
         {
@@ -1157,7 +1148,112 @@ namespace ProxmoxApiHelper
             await summaryDialog.ShowAsync();
         }
 
-      
+        private async Task LoadServerStats()
+        {
+            if (!_isServerStatsPanelVisible)
+                return;
+
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                var serverStats = new ObservableCollection<ServerStatProxmox>();
+
+                foreach (var node in nodes)
+                {
+                    var nodeName = node["node"].ToString();
+                    var nodeStatus = await _proxmoxClient.GetNodeStatusAsync(nodeName);
+                    var vms = await _proxmoxClient.GetVMsForNodeAsync(nodeName);
+
+                    var cpuUsage = Convert.ToDouble(nodeStatus["cpu"]) * 100;
+                    var memoryUsage = (Convert.ToDouble(nodeStatus["memory"]["used"]) / Convert.ToDouble(nodeStatus["memory"]["total"])) * 100;
+                    var storageUsage = (Convert.ToDouble(nodeStatus["rootfs"]["used"]) / Convert.ToDouble(nodeStatus["rootfs"]["total"])) * 100;
+
+                    serverStats.Add(new ServerStatProxmox
+                    {
+                        HostName = nodeName,
+                        VmCount = vms.Count,
+                        CpuUsage = cpuUsage,
+                        CpuUsageText = $"{cpuUsage:F1}%",
+                        MemoryUsage = memoryUsage,
+                        MemoryUsageText = $"{memoryUsage:F1}%",
+                        StorageUsage = storageUsage,
+                        StorageUsageText = $"{storageUsage:F1}%"
+                    });
+                }
+
+                ServerStatsItemsControlProxmox.ItemsSource = serverStats;
+                LastUpdateTextBlock.Text = $"Last updated: {DateTime.Now:HH:mm:ss}";
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Server Stats Error", $"Failed to load server stats: {ex.Message}");
+            }
+            finally
+            {
+            }
+        }
+
+
+        private void InitializeServerStatsTimer()
+        {
+            _serverStatsTimer = new DispatcherTimer();
+            _serverStatsTimer.Tick += ServerStatsTimer_Tick;
+            UpdateTimerInterval();
+        }
+
+        private void UpdateTimerInterval()
+        {
+            if (_serverStatsTimer != null)
+            {
+                _serverStatsTimer.Interval = TimeSpan.FromSeconds(SettingsManager.CurrentSettings.RefreshInterval);
+            }
+        }
+
+        private void LoadSettings()
+        {
+            RefreshIntervalNumberBox.Value = SettingsManager.CurrentSettings.RefreshInterval;
+        }
+
+        private void SaveSettings()
+        {
+             SettingsManager.SaveSettingsAsync();
+        }
+
+        private async void RefreshStats_Click(object sender, RoutedEventArgs e)
+        {
+            await LoadServerStats();
+        }
+
+        private void RefreshIntervalNumberBox_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        {
+            if (args.NewValue >= 1 && args.NewValue <= 60)
+            {
+                SettingsManager.CurrentSettings.RefreshInterval = (int)args.NewValue;
+                UpdateTimerInterval();
+            }
+        }
+
+        private async void ServerStatsTimer_Tick(object sender, object e)
+        {
+            if (_isServerStatsPanelVisible)
+            {
+                await LoadServerStats();
+            }
+        }
+
+        private void StartServerStatsTimer()
+        {
+            _isServerStatsPanelVisible = true;
+            _serverStatsTimer?.Start();
+        }
+
+        private void StopServerStatsTimer()
+        {
+            _isServerStatsPanelVisible = false;
+            _serverStatsTimer?.Stop();
+        }
+
+
 
         private void GroupsListView_ItemClick(object sender, ItemClickEventArgs e)
         {
@@ -1205,6 +1301,12 @@ namespace ProxmoxApiHelper
 
            EditNetworkInterfaceDialog dialog = new EditNetworkInterfaceDialog(_proxmoxClient, _currentNode, networkInterface);
             dialog.Activate();
+        }
+
+        private void SaveSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsManager.CurrentSettings.RefreshInterval = (int)RefreshIntervalNumberBox.Value;
+            SettingsManager.SaveSettingsAsync();
         }
     }
 
@@ -1258,15 +1360,6 @@ namespace ProxmoxApiHelper
                     : $"{Uptime.Hours}h {Uptime.Minutes}m {Uptime.Seconds}s";
             }
         }
-    }
-
-    public class ServerStatProxmox
-    {
-        public string HostName { get; set; }
-        public double CpuUsage { get; set; }
-        public string CpuUsageText { get; set; }
-        public double MemoryUsage { get; set; }
-        public string MemoryUsageText { get; set; }
     }
 
     public class VmConfig : INotifyPropertyChanged
@@ -1449,9 +1542,14 @@ namespace ProxmoxApiHelper
     {
         private bool _isSelected;
 
-        public string Id { get; set; }
+        public int Id { get; set; }  // Changed from string to int
         public string Name { get; set; }
         public string Node { get; set; }
+
+        public string Status { get; set; }
+        public int CpuCount { get; set; }
+        public long MemoryMB { get; set; }
+        public long DiskGB { get; set; }
 
         public bool IsSelected
         {

@@ -971,6 +971,66 @@ namespace ProxmoxApiHelper
             }
         }
 
+        public async Task<List<VMItem>> GetVMsForNodeAsync(string nodeName)
+        {
+            if (string.IsNullOrWhiteSpace(nodeName))
+            {
+                throw new ArgumentException("Node name cannot be null or empty.", nameof(nodeName));
+            }
+
+            try
+            {
+
+                // Updated API endpoint to use the correct path format
+                var response = await _httpClient.GetAsync($"/api2/json/nodes/{nodeName}/qemu");
+                response.EnsureSuccessStatusCode();
+
+                var content = await response.Content.ReadAsStringAsync();
+                var jsonDocument = JsonDocument.Parse(content);
+                var data = jsonDocument.RootElement.GetProperty("data");
+
+                var vms = new List<VMItem>();
+
+                foreach (var element in data.EnumerateArray())
+                {
+                    try
+                    {
+                        var vm = new VMItem
+                        {
+                            Id = element.GetProperty("vmid").GetInt32(),
+                            Name = element.TryGetProperty("name", out var nameProperty) ? nameProperty.GetString() : $"VM {element.GetProperty("vmid").GetInt32()}",
+                            Status = element.GetProperty("status").GetString(),
+                            CpuCount = element.TryGetProperty("cpus", out var cpusProperty) ? cpusProperty.GetInt32() : 0,
+                            MemoryMB = element.TryGetProperty("maxmem", out var memProperty) ? memProperty.GetInt64() / (1024 * 1024) : 0,
+                            DiskGB = element.TryGetProperty("maxdisk", out var diskProperty) ? diskProperty.GetInt64() / (1024 * 1024 * 1024) : 0
+                        };
+
+                        vms.Add(vm);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Continue processing other VMs even if one fails
+                        continue;
+                    }
+                }
+
+                return vms;
+            }
+            catch (HttpRequestException ex)
+            {
+                throw;
+            }
+            catch (JsonException ex)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw;
+            }
+        }
+
+
         public async Task<NetworkInterface> GetNetworkInterfaceDetailsAsync(string nodeName, string ifaceName)
         {
             if (string.IsNullOrEmpty(nodeName))

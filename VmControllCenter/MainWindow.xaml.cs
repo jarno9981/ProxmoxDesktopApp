@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using ProxmoxApiHelper;
 using Windows.Graphics;
+using Windows.Storage;
 
 namespace VmControllCenter
 {
@@ -20,6 +21,7 @@ namespace VmControllCenter
         {
             this.InitializeComponent();
             this.Title = "VM Control Center - Login";
+
             SetWindowSize(675, 985);
             TitleTop();
         }
@@ -57,6 +59,7 @@ namespace VmControllCenter
                 StatusTextBlock.Text = "Please fill in all fields.";
                 return;
             }
+
 
             StatusTextBlock.Text = "Logging in...";
             LoginButton.IsEnabled = false;
