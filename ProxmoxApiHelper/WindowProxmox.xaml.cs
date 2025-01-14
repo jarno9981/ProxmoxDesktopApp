@@ -599,6 +599,31 @@ namespace ProxmoxApiHelper
             }
         }
 
+        private async void NetworkInterfaceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (NetworkInterfaceComboBox.SelectedItem is string selectedInterface)
+            {
+                try
+                {
+                    
+                }
+                catch (Exception ex)
+                {
+                    // Handle error (e.g., show error message to user)
+                    Console.WriteLine($"Error loading network interface configuration: {ex.Message}");
+                }
+            }
+        }
+
+        private void IpConfigMethodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            bool isStatic = IpConfigMethodComboBox.SelectedIndex == 1;
+            IpAddressTextBox.IsEnabled = isStatic;
+            SubnetMaskTextBox.IsEnabled = isStatic;
+            GatewayTextBox.IsEnabled = isStatic;
+            DnsServersTextBox.IsEnabled = isStatic;
+        }
+
         private async void NodeSelectionComboBoxProxmox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (NodeSelectionComboBoxProxmox.SelectedItem != null)
@@ -642,35 +667,7 @@ namespace ProxmoxApiHelper
             }
         }
 
-        private async void ConfigureNetworkButtonProxmox_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                var networkConfig = new Dictionary<string, string>
-                {
-                    ["iface"] = NetworkInterfaceComboBoxProxmox.SelectedItem.ToString(),
-                    ["address"] = IpAddressTextBoxProxmox.Text,
-                    ["netmask"] = SubnetMaskTextBoxProxmox.Text,
-                    ["gateway"] = GatewayTextBoxProxmox.Text
-                };
-
-                bool success = await _proxmoxClient.ConfigureNetworkAsync(networkConfig);
-                if (success)
-                {
-                    StatusInfoBar2Proxmox.Message = "Network configuration updated successfully.";
-                    StatusInfoBar2Proxmox.Severity = InfoBarSeverity.Success;
-                }
-                else
-                {
-                    throw new Exception("Failed to update network configuration");
-                }
-            }
-            catch (Exception ex)
-            {
-                await ShowErrorDialog("Network Configuration Error", $"Failed to configure network: {ex.Message}");
-            }
-        }
-
+       
         private async Task LoadServerStats()
         {
             try

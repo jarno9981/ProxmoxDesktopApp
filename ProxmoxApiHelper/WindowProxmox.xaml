@@ -263,32 +263,7 @@
                                 </TextBox>
                             </StackPanel>
 
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="Network Configuration" Style="{ThemeResource SubtitleTextBlockStyle}" />
-                                <ComboBox x:Name="NetworkModelComboBoxProxmox" Header="Network Model *" PlaceholderText="Select Network Model">
-                                    <ComboBoxItem Content="VirtIO" />
-                                    <ComboBoxItem Content="E1000" />
-                                    <ComboBoxItem Content="RTL8139" />
-                                    <ToolTipService.ToolTip>
-                                        <TextBlock Text="The type of network adapter for the VM"/>
-                                    </ToolTipService.ToolTip>
-                                </ComboBox>
-                                <TextBox x:Name="BridgeTextBoxProxmox" Header="Bridge *" PlaceholderText="Specify network bridge">
-                                    <ToolTipService.ToolTip>
-                                        <TextBlock Text="The network bridge to which the VM will be connected"/>
-                                    </ToolTipService.ToolTip>
-                                </TextBox>
-                                <TextBox x:Name="IpConfig0TextBoxProxmox" Header="IP Configuration" PlaceholderText="Specify IP configuration (optional)" IsEnabled="False">
-                                    <ToolTipService.ToolTip>
-                                        <TextBlock Text="Static IP configuration for the VM (if applicable)"/>
-                                    </ToolTipService.ToolTip>
-                                </TextBox>
-                                <CheckBox x:Name="FirewallCheckBoxProxmox" Content="Enable Firewall" IsChecked="True">
-                                    <ToolTipService.ToolTip>
-                                        <TextBlock Text="Enable the built-in firewall for the VM"/>
-                                    </ToolTipService.ToolTip>
-                                </CheckBox>
-                            </StackPanel>
+                            
 
                             <StackPanel Spacing="8">
                                 <TextBlock Text="Performance" Style="{ThemeResource SubtitleTextBlockStyle}" />
@@ -505,41 +480,102 @@
                 <Grid x:Name="NetworkConfigPanelProxmox" Visibility="Collapsed" Margin="24">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0" Text="Network Configuration" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,24" />
 
                     <InfoBar x:Name="StatusInfoBar2Proxmox"
-                             Grid.Row="0"
-                             IsOpen="True"
-                             Severity="Warning"
-                             Margin="0,42,0,10" 
-                             Content="This Is In Alpha It Can Break Stuff"/>
+             Grid.Row="1"
+             IsOpen="True"
+             Severity="Warning"
+             Margin="0,0,0,24" 
+             Title="Alpha Version"
+             Message="This feature is in alpha. Use with caution as it may cause unexpected behavior."/>
 
-                    <StackPanel Grid.Row="1" Spacing="12">
-                        <ComboBox x:Name="NetworkInterfaceComboBoxProxmox" PlaceholderText="Select Network Interface" >
-                            <ToolTipService.ToolTip>
-                                <TextBlock Text="Select the network interface to configure"/>
-                            </ToolTipService.ToolTip>
-                        </ComboBox>
-                        <TextBox x:Name="IpAddressTextBoxProxmox" PlaceholderText="IP Address" >
-                            <ToolTipService.ToolTip>
-                                <TextBlock Text="Enter the IP address for the selected interface"/>
-                            </ToolTipService.ToolTip>
-                        </TextBox>
-                        <TextBox x:Name="SubnetMaskTextBoxProxmox" PlaceholderText="Subnet Mask" >
-                            <ToolTipService.ToolTip>
-                                <TextBlock Text="Enter the subnet mask for the selected interface"/>
-                            </ToolTipService.ToolTip>
-                        </TextBox>
-                        <TextBox x:Name="GatewayTextBoxProxmox" PlaceholderText="Gateway">
-                            <ToolTipService.ToolTip>
-                                <TextBlock Text="Enter the gateway address for the selected interface"/>
-                            </ToolTipService.ToolTip>
-                        </TextBox>
-                        <Button x:Name="ConfigureNetworkButtonProxmox" Content="Configure Network" Click="ConfigureNetworkButtonProxmox_Click" Style="{StaticResource AccentButtonStyle}" />
-                    </StackPanel>
+                    <ScrollViewer Grid.Row="2">
+                        <StackPanel Spacing="16">
+                            <ComboBox x:Name="NodeComboBox" Header="Node" PlaceholderText="Select Node" Margin="0,0,0,16">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="Select the node where the VM is located"/>
+                                </ToolTipService.ToolTip>
+                            </ComboBox>
+
+                            <ComboBox x:Name="NetworkInterfaceComboBox" Header="Network Interface" PlaceholderText="Select Network Interface">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="Select the network interface to configure"/>
+                                </ToolTipService.ToolTip>
+                            </ComboBox>
+
+                            <ComboBox x:Name="NetworkModelComboBoxProxmox" Header="Network Model *" PlaceholderText="Select Network Model">
+                                <ComboBoxItem Content="VirtIO" />
+                                <ComboBoxItem Content="E1000" />
+                                <ComboBoxItem Content="RTL8139" />
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The type of network adapter for the VM"/>
+                                </ToolTipService.ToolTip>
+                            </ComboBox>
+
+                            <TextBox x:Name="BridgeTextBoxProxmox" Header="Bridge *" PlaceholderText="Specify network bridge">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The network bridge to which the VM will be connected"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <TextBox x:Name="IpConfig0TextBoxProxmox" Header="IP Configuration" PlaceholderText="Specify IP configuration (optional)" IsEnabled="False">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="Static IP configuration for the VM (if applicable)"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <TextBox x:Name="MacAddressTextBox" Header="MAC Address" PlaceholderText="Enter MAC address (optional)">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The MAC address for the network interface"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <ComboBox x:Name="IpConfigMethodComboBox" Header="IP Configuration Method" PlaceholderText="Select IP configuration method">
+                                <ComboBoxItem Content="DHCP" />
+                                <ComboBoxItem Content="Static" />
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="Choose between DHCP or Static IP configuration"/>
+                                </ToolTipService.ToolTip>
+                            </ComboBox>
+
+                            <TextBox x:Name="IpAddressTextBox" Header="IP Address" PlaceholderText="Enter IP address" IsEnabled="False">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The static IP address for the VM (if applicable)"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <TextBox x:Name="SubnetMaskTextBox" Header="Subnet Mask" PlaceholderText="Enter subnet mask" IsEnabled="False">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The subnet mask for the static IP configuration"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <TextBox x:Name="GatewayTextBox" Header="Gateway" PlaceholderText="Enter gateway address" IsEnabled="False">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The gateway address for the static IP configuration"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <TextBox x:Name="DnsServersTextBox" Header="DNS Servers" PlaceholderText="Enter DNS servers (comma-separated)" IsEnabled="False">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="The DNS servers for the network configuration (comma-separated)"/>
+                                </ToolTipService.ToolTip>
+                            </TextBox>
+
+                            <CheckBox x:Name="FirewallCheckBoxProxmox" Content="Enable Firewall" IsChecked="True">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock Text="Enable the built-in firewall for the VM"/>
+                                </ToolTipService.ToolTip>
+                            </CheckBox>
+
+                            <Button x:Name="SaveButton" Content="Save Configuration" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
                 <Grid x:Name="UsersGroups" Margin="24" Visibility="Collapsed">
