@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ProxmoxApiHelper.EditNetworkInterfaceDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:helpers="using:ProxmoxApiHelper.Helpers"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="Edit Interface">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid Margin="20">
+        <Grid.Resources>
+            <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Edit Interface" Style="{StaticResource HeaderTextBlockStyle}" Margin="0,0,0,20"/>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel Spacing="16">
+                <!-- Basic Information -->
+                <TextBlock Text="Basic Configuration" Style="{StaticResource SubtitleTextBlockStyle}" />
+
+                <ComboBox x:Name="TypeComboBox" Header="Interface Type" PlaceholderText="Select type"
+                          SelectedItem="{Binding SelectedType, Mode=TwoWay}">
+                    <ComboBoxItem Content="Bridge" />
+                    <ComboBoxItem Content="Bond" />
+                    <ComboBoxItem Content="Eth" />
+                    <ComboBoxItem Content="VLAN" />
+                </ComboBox>
+
+                <ComboBox x:Name="MethodComboBox" Header="Configuration Method" PlaceholderText="Select method"
+                          SelectedItem="{Binding SelectedMethod, Mode=TwoWay}">
+                    <ComboBoxItem Content="Static" />
+                    <ComboBoxItem Content="DHCP" />
+                    <ComboBoxItem Content="Manual" />
+                </ComboBox>
+
+                <!-- IP Configuration -->
+                <TextBlock Text="IP Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
+
+                <TextBox Text="{Binding Address, Mode=TwoWay}" Header="IP Address" PlaceholderText="Enter IP address"/>
+                <TextBox Text="{Binding Netmask, Mode=TwoWay}" Header="Netmask" PlaceholderText="Enter netmask (e.g., 24)"/>
+                <TextBox Text="{Binding Gateway, Mode=TwoWay}" Header="Gateway" PlaceholderText="Enter gateway address"/>
+
+                <!-- Bridge Configuration -->
+                <StackPanel x:Name="BridgeConfigPanel" Visibility="{Binding IsBridgeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <TextBlock Text="Bridge Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
+
+                    <TextBox Text="{Binding BridgePorts, Mode=TwoWay}" Header="Bridge Ports" PlaceholderText="Space-separated list of ports"/>
+                    <CheckBox IsChecked="{Binding IsBridgeVlanAware, Mode=TwoWay}" Content="VLAN Aware"/>
+                    <ComboBox SelectedItem="{Binding SelectedBridgeStp, Mode=TwoWay}" Header="STP Mode">
+                        <ComboBoxItem Content="On"/>
+                        <ComboBoxItem Content="Off"/>
+                    </ComboBox>
+                    <TextBox Text="{Binding BridgeFd, Mode=TwoWay}" Header="Forward Delay" PlaceholderText="Enter forward delay"/>
+                </StackPanel>
+
+                <!-- Additional Settings -->
+                <TextBlock Text="Additional Settings" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
+
+                <CheckBox IsChecked="{Binding IsAutostart, Mode=TwoWay}" Content="Enable Autostart"/>
+                <TextBox Text="{Binding Comments, Mode=TwoWay}" Header="Comments" PlaceholderText="Enter comments" TextWrapping="Wrap" Height="80"/>
+            </StackPanel>
+        </ScrollViewer>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,20,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}"/>
+            <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource AccentButtonStyle}"/>
+        </StackPanel>
+    </Grid>
+</Window>

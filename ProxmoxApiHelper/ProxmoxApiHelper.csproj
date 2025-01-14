@@ -12,6 +12,7 @@
     <None Remove="CreateGroup.xaml" />
     <None Remove="CreateUserWindow.xaml" />
     <None Remove="EditGroupWindow.xaml" />
+    <None Remove="EditNetworkInterfaceDialog.xaml" />
     <None Remove="EditUserWindow.xaml" />
     <None Remove="EditVmProxmox.xaml" />
     <None Remove="WindowProxmox.xaml" />
@@ -24,6 +25,9 @@
     <None Update="apiwindowlogo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="EditNetworkInterfaceDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="CreateGroup.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

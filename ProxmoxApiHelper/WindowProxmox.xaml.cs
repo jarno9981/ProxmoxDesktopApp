@@ -17,6 +17,8 @@ using System.Runtime.CompilerServices;
 using Microsoft.UI.Dispatching;
 using System.Text;
 using System.Text.Json;
+using System.Net.NetworkInformation;
+using NetworkInterface = ProxmoxApiHelper.Helpers.NetworkInterface;
 
 namespace ProxmoxApiHelper
 {
@@ -28,6 +30,8 @@ namespace ProxmoxApiHelper
         private AppWindow appWindow;
         private ObservableCollection<VmConfig> _massVmConfigs;
         private Random _random = new Random();
+        private ObservableCollection<NetworkInterface> NetworkInterfaces { get; set; }
+        private string _currentNode;
 
 
         public MainPageViewModel ViewModel { get; }
@@ -39,6 +43,7 @@ namespace ProxmoxApiHelper
             _vms = new ObservableCollection<ProxMachine>();
             _massVmConfigs = new ObservableCollection<VmConfig>();
             ViewModel = new MainPageViewModel();
+            NetworkInterfaces = new ObservableCollection<NetworkInterface>();
 
             InitializeAsync();
             TitleTop();
@@ -134,7 +139,7 @@ namespace ProxmoxApiHelper
                 var nodes = await _proxmoxClient.GetNodesAsync();
                 NodeSelectionComboBoxProxmox.ItemsSource = nodes.Select(n => n["node"].ToString());
                 MassVmNodeSelectionComboBox.ItemsSource = nodes.Select(n => n["node"].ToString());
-
+                NodeComboBox.ItemsSource = nodes.Select(n => n["node"].ToString());
             }
             catch (Exception ex)
             {
@@ -1152,6 +1157,8 @@ namespace ProxmoxApiHelper
             await summaryDialog.ShowAsync();
         }
 
+      
+
         private void GroupsListView_ItemClick(object sender, ItemClickEventArgs e)
         {
             if (e.ClickedItem is GroupItem clickedGroup)
@@ -1164,7 +1171,43 @@ namespace ProxmoxApiHelper
                 // based on the group selection change
             }
         }
+
+        private async Task LoadNetworkInterfaces()
+        {
+            try
+            {
+                NetworkInterfaces.Clear();
+                var networkData = await _proxmoxClient.GetNetworkDataAsync(_currentNode);
+                foreach (var interface_ in networkData)
+                {
+                    // Since we're already getting NetworkInterface objects, we can add them directly
+                    NetworkInterfaces.Add(interface_);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Error loading network interfaces", ex.Message);
+            }
+        }
+        private void NodeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (NodeComboBox.SelectedItem is string selectedNode)
+            {
+                _currentNode = selectedNode;
+                LoadNetworkInterfaces();
+            }
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+            var button = (Button)sender;
+            var networkInterface = (NetworkInterface)button.Tag;
+
+           EditNetworkInterfaceDialog dialog = new EditNetworkInterfaceDialog(_proxmoxClient, _currentNode, networkInterface);
+            dialog.Activate();
+        }
     }
+
 
 
     public class ProxMachine

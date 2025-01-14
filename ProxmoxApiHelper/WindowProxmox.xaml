@@ -5,6 +5,7 @@
     xmlns:local="using:ProxmoxApiHelper"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:helpers="using:ProxmoxApiHelper.Helpers"
     mc:Ignorable="d"
     Title="VM Control Center - Dashboard Proxmox">
 
@@ -496,11 +497,40 @@
 
                     <ScrollViewer Grid.Row="2">
                         <StackPanel Spacing="16">
-                            <ComboBox x:Name="NodeComboBox" Header="Node" PlaceholderText="Select Node" Margin="0,0,0,16">
+                            <ComboBox x:Name="NodeComboBox" Header="Node" PlaceholderText="Select Node" SelectionChanged="NodeComboBox_SelectionChanged" Margin="0,0,0,16">
                                 <ToolTipService.ToolTip>
                                     <TextBlock Text="Select the node where the VM is located"/>
                                 </ToolTipService.ToolTip>
                             </ComboBox>
+
+                            <ListView x:Name="NetworkListView"
+              Grid.Row="3"
+              ItemsSource="{x:Bind NetworkInterfaces, Mode=OneWay}"
+              SelectionMode="None">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="helpers:NetworkInterface">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="{x:Bind Iface}" FontWeight="Bold" />
+                                                <TextBlock Text="{x:Bind Type}" />
+                                                <TextBlock Text="{x:Bind Method}" />
+                                                <TextBlock Text="{x:Bind Address}" />
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Click="Button_Click" Tag="{Binding}" Margin="0,0,8,0">
+                                                <FontIcon Glyph="&#xE70F;" FontFamily="Segoe Fluent Icons"/>
+                                            </Button>
+                                            <Button Grid.Column="2"  Tag="{Binding}">
+                                                <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons"/>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
 
                             <ComboBox x:Name="NetworkInterfaceComboBox" Header="Network Interface" PlaceholderText="Select Network Interface">
                                 <ToolTipService.ToolTip>

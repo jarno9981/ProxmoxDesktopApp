@@ -932,6 +932,138 @@ namespace ProxmoxApiHelper
             }
         }
 
+        public class NetworkDataResponse
+        {
+            [JsonPropertyName("data")]
+            public List<NetworkInterface> Data { get; set; }
+        }
+
+        public async Task<List<NetworkInterface>> GetNetworkDataAsync(string nodeName)
+        {
+            if (string.IsNullOrEmpty(nodeName))
+            {
+                throw new ArgumentException("Node name cannot be null or empty.", nameof(nodeName));
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{nodeName}/network"));
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = false,
+                    PropertyNamingPolicy = null // Don't transform property names
+                };
+
+                var result = JsonSerializer.Deserialize<NetworkDataResponse>(content, options);
+                return result?.Data ?? new List<NetworkInterface>();
+            }
+            catch (JsonException ex)
+            {
+                throw new ProxmoxApiException($"Failed to parse network data response for node {nodeName}: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new ProxmoxApiException($"An unexpected error occurred while retrieving network data for node {nodeName}: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<NetworkInterface> GetNetworkInterfaceDetailsAsync(string nodeName, string ifaceName)
+        {
+            if (string.IsNullOrEmpty(nodeName))
+            {
+                throw new ArgumentException("Node name cannot be null or empty.", nameof(nodeName));
+            }
+
+            if (string.IsNullOrEmpty(ifaceName))
+            {
+                throw new ArgumentException("Interface name cannot be null or empty.", nameof(ifaceName));
+            }
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{nodeName}/network/{ifaceName}"));
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                };
+
+                // The API returns a single interface object, not a list
+                var result = JsonSerializer.Deserialize<ApiResponse<NetworkInterface>>(content, options);
+
+                if (result?.Data == null)
+                {
+                    throw new ProxmoxApiException($"No data returned for interface {ifaceName}");
+                }
+
+                return result.Data;
+            }
+            catch (JsonException ex)
+            {
+                throw new ProxmoxApiException($"Failed to parse interface details for {ifaceName} on node {nodeName}: {ex.Message}", ex);
+            }
+            catch (Exception ex)
+            {
+                throw new ProxmoxApiException($"Failed to get interface details for {ifaceName} on node {nodeName}: {ex.Message}", ex);
+            }
+        }
+
+        public async Task<bool> UpdateNetworkInterfaceAsync(string nodeName, string ifaceName, NetworkInterface interface_)
+        {
+            try
+            {
+                var parameters = new Dictionary<string, string>
+                {
+                    ["type"] = interface_.Type,
+                    ["method"] = interface_.Method
+                };
+
+                if (!string.IsNullOrEmpty(interface_.Address))
+                    parameters["address"] = interface_.Address;
+
+                if (!string.IsNullOrEmpty(interface_.Gateway))
+                    parameters["gateway"] = interface_.Gateway;
+
+                if (!string.IsNullOrEmpty(interface_.Netmask))
+                    parameters["netmask"] = interface_.Netmask;
+
+                if (interface_.BridgeVlanAware.HasValue)
+                    parameters["bridge_vlan_aware"] = interface_.BridgeVlanAware.Value.ToString();
+
+                if (!string.IsNullOrEmpty(interface_.BridgePorts))
+                    parameters["bridge_ports"] = interface_.BridgePorts;
+
+                if (!string.IsNullOrEmpty(interface_.BridgeStp))
+                    parameters["bridge_stp"] = interface_.BridgeStp;
+
+                if (!string.IsNullOrEmpty(interface_.BridgeFd))
+                    parameters["bridge_fd"] = interface_.BridgeFd;
+
+                if (interface_.Autostart.HasValue)
+                    parameters["autostart"] = interface_.Autostart.Value.ToString();
+
+                if (!string.IsNullOrEmpty(interface_.Comments))
+                    parameters["comments"] = interface_.Comments;
+
+                var content = new FormUrlEncodedContent(parameters);
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PutAsync($"/api2/json/nodes/{nodeName}/network/{ifaceName}", content));
+
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception ex)
+            {
+                throw new ProxmoxApiException($"Failed to update interface {ifaceName} on node {nodeName}: {ex.Message}", ex);
+            }
+        }
 
 
         public async Task<Dictionary<string, object>> GetPoolAsync(string poolId)
