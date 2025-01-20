@@ -20,6 +20,8 @@ using System.Text.Json;
 using System.Net.NetworkInformation;
 using NetworkInterface = ProxmoxApiHelper.Helpers.NetworkInterface;
 using Windows.Storage;
+using System.Diagnostics;
+using System.IO;
 
 namespace ProxmoxApiHelper
 {
@@ -49,7 +51,6 @@ namespace ProxmoxApiHelper
             ViewModel = new MainPageViewModel();
             NetworkInterfaces = new ObservableCollection<NetworkInterface>();
             SettingsManager.CurrentSettings.RefreshInterval = SettingsManager.CurrentSettings.RefreshInterval == 0 ? 5 : SettingsManager.CurrentSettings.RefreshInterval;
-
             RefreshIntervalNumberBox.Value = SettingsManager.CurrentSettings.RefreshInterval;
             InitializeServerStatsTimer(); // Initialize the timer
             this.Closed += WindowProxmox_Closed;
@@ -64,12 +65,7 @@ namespace ProxmoxApiHelper
             SaveSettings();
         }
 
-        private void AvailableVMsListView_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            _selectedVm = AvailableVMsListView.SelectedItem as ProxMachine;
-            var vms = _proxmoxClient.GetAllVmsAsync();
-            AvailableVMsListView.ItemsSource = vms;
-        }
+       
 
         private void VMCheckBox_Checked(object sender, RoutedEventArgs e)
         {
@@ -164,25 +160,37 @@ namespace ProxmoxApiHelper
 
         private async void PoolsListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            PoolDetailsPanel.Visibility = Visibility.Collapsed;
-
-            if (PoolsListView.SelectedItem is ProxmoxClient.ResourcePool selectedPool)
+            if (PoolsListView.SelectedItem is Dictionary<string, object> selectedPool)
             {
                 try
                 {
-                    await _proxmoxClient.GetPoolDetailsAsync(selectedPool.PoolId);
+                    string poolId = selectedPool["poolid"] as string;
+                    if (string.IsNullOrEmpty(poolId))
+                    {
+                        throw new InvalidOperationException("Selected pool does not have a valid poolid.");
+                    }
 
-                    PoolNameTextBox.Text = selectedPool.PoolId ?? string.Empty;
-                    PoolCommentTextBox.Text = selectedPool.Comment ?? string.Empty;
+                    var poolDetails = await _proxmoxClient.GetPoolsAsync(poolId);
+                    if (poolDetails == null || poolDetails.Count == 0)
+                    {
+                        throw new InvalidOperationException($"No details found for pool {poolId}");
+                    }
 
-                    AvailableVMsListView.ItemsSource = selectedPool.Members;
+                    var pool = poolDetails[0];
+
+                    // Update UI elements
+                    PoolIdTextBox.Text = poolId;
+                    PoolCommentTextBox.Text = pool.ContainsKey("comment") ? pool["comment"] as string : string.Empty;
+
+                    UpdateVMListView(pool);
+                    UpdateStorageListView(pool);
 
                     PoolDetailsPanel.Visibility = Visibility.Visible;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error loading pool details for pool {selectedPool.PoolId}: {ex.Message}");
                     await ShowErrorDialog("Error", $"Failed to load pool details: {ex.Message}");
+                    PoolDetailsPanel.Visibility = Visibility.Collapsed;
                 }
             }
             else
@@ -191,51 +199,93 @@ namespace ProxmoxApiHelper
             }
         }
 
+        private void UpdateVMListView(Dictionary<string, object> pool)
+        {
+            if (pool.ContainsKey("members") && pool["members"] is List<Dictionary<string, object>> members)
+            {
+                var vms = members.Where(m => m.ContainsKey("type") && m["type"] as string == "qemu").ToList();
+                VMListView.ItemsSource = vms;
+            }
+            else
+            {
+                VMListView.ItemsSource = null;
+            }
+        }
+
+        private void UpdateStorageListView(Dictionary<string, object> pool)
+        {
+            if (pool.ContainsKey("members") && pool["members"] is List<Dictionary<string, object>> members)
+            {
+                var storage = members.Where(m => m.ContainsKey("type") && m["type"] as string == "storage").ToList();
+                StorageListView.ItemsSource = storage;
+            }
+            else
+            {
+                StorageListView.ItemsSource = null;
+            }
+        }
+
+
         private void ClearPoolDetails()
         {
-            PoolNameTextBox.Text = string.Empty;
+            PoolIdTextBox.Text = string.Empty;
             PoolCommentTextBox.Text = string.Empty;
-            AvailableVMsListView.ItemsSource = null;
+            VMListView.ItemsSource = null;
         }
 
 
         private void AddPoolButton_Click(object sender, RoutedEventArgs e)
         {
-            // Implement add pool functionality
-            // You might want to open a dialog or navigate to a new page for adding a pool
+            AddPoolWindow addPoolWindow = new AddPoolWindow(_proxmoxClient);
+            addPoolWindow.Activate();
         }
 
         private async void SavePoolButton_Click(object sender, RoutedEventArgs e)
         {
-            if (PoolsListView.SelectedItem is ProxmoxClient.ResourcePool selectedPool)
+            try
             {
-                try
+                string poolId = PoolIdTextBox.Text.Trim();
+                if (string.IsNullOrEmpty(poolId))
                 {
-                    string newComment = PoolCommentTextBox.Text;
-                    List<string> currentMembers = AvailableVMsListView.Items.Cast<ProxMachine>()
-                                                    .Select(m => m.Id)
-                                                    .ToList();
-
-                    var updateResult = await _proxmoxClient.UpdateResourcePoolAsync(
-                        selectedPool.PoolId,
-                        comment: newComment,
-                        vms: currentMembers
-                    );
-
-                    
-                        await LoadPools(); // Refresh the pool list
-                        // Update the selected pool in the list view
-                        PoolsListView.SelectedItem = PoolsListView.Items.FirstOrDefault(p => (p as ProxmoxClient.ResourcePool)?.PoolId == selectedPool.PoolId);
-                    
+                    return;
                 }
-                catch (Exception ex)
+
+                var poolData = new Dictionary<string, object>();
+
+                // Comment
+                string comment = PoolCommentTextBox.Text.Trim();
+                if (!string.IsNullOrEmpty(comment))
                 {
-                    ShowErrorMessage($"Error updating pool: {ex.Message}");
+                    poolData["comment"] = comment;
+                }
+
+               
+
+                // Storage
+                var selectedStorage = StorageListView.SelectedItems.Cast<string>().ToList();
+                if (selectedStorage.Any())
+                {
+                    poolData["storage"] = selectedStorage;
+                }
+
+                // VMs
+                var selectedVMs = VMListView.SelectedItems.Cast<string>().ToList();
+                if (selectedVMs.Any())
+                {
+                    poolData["vms"] = selectedVMs;
+                }
+
+                bool result = await _proxmoxClient.UpdatePoolAsync(poolId, poolData);
+                if (result)
+                {
+                    // Optionally, refresh the pool data or close the window
+                }
+                else
+                {
                 }
             }
-            else
+            catch (Exception ex)
             {
-                ShowErrorMessage("No pool selected. Please select a pool to update.");
             }
         }
 
@@ -270,7 +320,8 @@ namespace ProxmoxApiHelper
                     Title = "Confirm Deletion",
                     Content = $"Are you sure you want to delete the pool '{selectedPool.PoolId}'?",
                     PrimaryButtonText = "Delete",
-                    CloseButtonText = "Cancel"
+                    CloseButtonText = "Cancel",
+                    XamlRoot= this.Content.XamlRoot,
                 };
 
                 var result = await dialog.ShowAsync();
@@ -279,7 +330,9 @@ namespace ProxmoxApiHelper
                 {
                     try
                     {
-                        
+                        _proxmoxClient.DeletePoolAsync($"{selectedPool.PoolId}");
+                        LoadPools();
+
                     }
                     catch (Exception ex)
                     {

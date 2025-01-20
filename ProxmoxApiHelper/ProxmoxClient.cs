@@ -1126,46 +1126,132 @@ namespace ProxmoxApiHelper
         }
 
 
-        public async Task<Dictionary<string, object>> GetPoolAsync(string poolId)
+        public async Task<List<Dictionary<string, object>>> GetPoolsAsync(string poolId = null, string type = null)
         {
-            if (string.IsNullOrEmpty(poolId))
+            string endpoint = $"/api2/json/pools/{poolId}";
+
+            var queryParams = new List<string>();
+            if (!string.IsNullOrEmpty(type))
             {
-                throw new ArgumentNullException(nameof(poolId));
+                queryParams.Add($"type={Uri.EscapeDataString(type)}");
+            }
+
+            if (queryParams.Count > 0)
+            {
+                endpoint += "?" + string.Join("&", queryParams);
             }
 
             try
             {
-                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/pools/{poolId}"));
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync(endpoint));
                 var responseBody = await response.Content.ReadAsStringAsync();
                 var jsonDocument = JsonDocument.Parse(responseBody);
                 var data = jsonDocument.RootElement.GetProperty("data");
 
-                var poolDict = new Dictionary<string, object>();
-                foreach (var property in data.EnumerateObject())
+                var pools = new List<Dictionary<string, object>>();
+
+                if (data.ValueKind == JsonValueKind.Array)
                 {
-                    if (property.Name == "members")
+                    foreach (var poolElement in data.EnumerateArray())
                     {
-                        var membersList = new List<string>();
-                        foreach (var member in property.Value.EnumerateArray())
-                        {
-                            membersList.Add(member.GetString());
-                        }
-                        poolDict[property.Name] = membersList;
-                    }
-                    else
-                    {
-                        poolDict[property.Name] = property.Value.GetString();
+                        pools.Add(ParsePoolData(poolElement));
                     }
                 }
+                else if (data.ValueKind == JsonValueKind.Object)
+                {
+                    pools.Add(ParsePoolData(data));
+                }
 
-                return poolDict;
+                return pools;
             }
             catch (Exception ex)
             {
-                throw new Exception($"Failed to retrieve pool {poolId}", ex);
+                throw new Exception($"Failed to retrieve pool(s)", ex);
             }
         }
 
+        private Dictionary<string, object> ParsePoolData(JsonElement poolElement)
+        {
+            var poolDict = new Dictionary<string, object>();
+            foreach (var property in poolElement.EnumerateObject())
+            {
+                switch (property.Name)
+                {
+                    case "members":
+                        poolDict[property.Name] = ParseMembers(property.Value);
+                        break;
+                    case "comment":
+                    case "poolid":
+                        poolDict[property.Name] = property.Value.GetString();
+                        break;
+                    default:
+                        poolDict[property.Name] = ParseJsonValue(property.Value);
+                        break;
+                }
+            }
+            return poolDict;
+        }
+
+        private List<Dictionary<string, object>> ParseMembers(JsonElement membersElement)
+        {
+            var membersList = new List<Dictionary<string, object>>();
+            foreach (var member in membersElement.EnumerateArray())
+            {
+                var memberDict = new Dictionary<string, object>();
+                foreach (var property in member.EnumerateObject())
+                {
+                    switch (property.Name)
+                    {
+                        case "maxdisk":
+                        case "maxmem":
+                        case "vmid":
+                        case "mem":
+                        case "maxcpu":
+                        case "disk":
+                        case "uptime":
+                            memberDict[property.Name] = property.Value.GetInt64();
+                            break;
+                        case "cpu":
+                        case "diskread":
+                        case "netout":
+                        case "netin":
+                        case "diskwrite":
+                            memberDict[property.Name] = property.Value.GetDouble();
+                            break;
+                        case "template":
+                            memberDict[property.Name] = property.Value.GetBoolean();
+                            break;
+                        default:
+                            memberDict[property.Name] = property.Value.GetString();
+                            break;
+                    }
+                }
+                membersList.Add(memberDict);
+            }
+            return membersList;
+        }
+
+        private object ParseJsonValue(JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.Object:
+                    return element.EnumerateObject().ToDictionary(p => p.Name, p => ParseJsonValue(p.Value));
+                case JsonValueKind.Array:
+                    return element.EnumerateArray().Select(ParseJsonValue).ToList();
+                case JsonValueKind.String:
+                    return element.GetString();
+                case JsonValueKind.Number:
+                    return element.TryGetInt64(out long longValue) ? longValue : element.GetDouble();
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    return element.GetBoolean();
+                case JsonValueKind.Null:
+                    return null;
+                default:
+                    return element.GetRawText();
+            }
+        }
         public class PoolMember
         {
             public int VmId { get; set; }
@@ -1195,66 +1281,6 @@ namespace ProxmoxApiHelper
             public List<PoolMember> Members { get; set; }
         }
 
-        public async Task GetPoolDetailsAsync(string poolId)
-        {
-            if (string.IsNullOrEmpty(poolId))
-            {
-                Console.WriteLine("Pool ID cannot be null or empty.");
-                return;
-            }
-
-            try
-            {
-                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync($"/api2/json/pools/{poolId}"));
-                response.EnsureSuccessStatusCode();
-                var responseBody = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Raw response for pool {poolId}: {responseBody}");
-
-                var jsonDocument = JsonDocument.Parse(responseBody);
-
-                if (jsonDocument.RootElement.TryGetProperty("data", out var data))
-                {
-                    var options = new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    };
-
-                    try
-                    {
-                        var pool = JsonSerializer.Deserialize<ResourcePool>(data.GetRawText(), options);
-                        if (pool != null)
-                        {
-                            Console.WriteLine($"Successfully deserialized pool details for {poolId}");
-                            Console.WriteLine($"Pool ID: {pool.PoolId}");
-                            Console.WriteLine($"Comment: {pool.Comment}");
-                            Console.WriteLine($"Number of members: {pool.Members?.Count ?? 0}");
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Failed to deserialize pool details for {poolId}. Deserialized object is null.");
-                        }
-                    }
-                    catch (JsonException ex)
-                    {
-                        Console.WriteLine($"JSON Exception while deserializing pool details for {poolId}: {ex.Message}");
-                        Console.WriteLine($"Raw JSON: {data.GetRawText()}");
-                    }
-                }
-                else
-                {
-                    Console.WriteLine($"Failed to retrieve pool details for {poolId}: Data not found in the response.");
-                    Console.WriteLine($"Raw response: {responseBody}");
-                }
-            }
-            catch (HttpRequestException ex)
-            {
-                Console.WriteLine($"HTTP request failed while retrieving pool details for {poolId}: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Unexpected error occurred while retrieving pool details for {poolId}: {ex.Message}");
-            }
-        }
 
         public async Task<ApiResponse<dynamic>> UpdateResourcePoolAsync(string poolId, string comment = null, List<string> vms = null, bool allowMove = false)
         {
@@ -1437,11 +1463,28 @@ namespace ProxmoxApiHelper
                     parameters["comment"] = comment.ToString();
                 }
 
-                if (poolData.TryGetValue("members", out var members))
+
+                if (poolData.TryGetValue("storage", out var storage))
                 {
-                    if (members is List<string> membersList)
+                    if (storage is List<string> storageList)
                     {
-                        parameters["members"] = string.Join(",", membersList);
+                        parameters["storage"] = string.Join(",", storageList);
+                    }
+                    else
+                    {
+                        parameters["storage"] = storage.ToString();
+                    }
+                }
+
+                if (poolData.TryGetValue("vms", out var vms))
+                {
+                    if (vms is List<string> vmsList)
+                    {
+                        parameters["vms"] = string.Join(",", vmsList);
+                    }
+                    else
+                    {
+                        parameters["vms"] = vms.ToString();
                     }
                 }
 

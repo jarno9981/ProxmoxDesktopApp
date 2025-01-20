@@ -9,6 +9,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="AddPoolWindow.xaml" />
     <None Remove="CreateGroup.xaml" />
     <None Remove="CreateUserWindow.xaml" />
     <None Remove="EditGroupWindow.xaml" />
@@ -35,6 +36,9 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <Page Update="AddPoolWindow.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <None Update="apiwindowlogo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

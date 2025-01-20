@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ProxmoxApiHelper.AddPoolWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ProxmoxApiHelper"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Title="AddPoolWindow">
+
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Pool ID:" Grid.Row="0" Margin="0,0,0,5"/>
+        <TextBox x:Name="PoolIdTextBox" Grid.Row="1" Margin="0,0,0,10"/>
+
+        <TextBlock Text="Comment (Optional):" Grid.Row="2" Margin="0,0,0,5"/>
+        <TextBox x:Name="CommentTextBox" Grid.Row="3" Margin="0,0,0,10" AcceptsReturn="True" TextWrapping="Wrap"/>
+
+        <Button Content="Create Pool" Grid.Row="4" HorizontalAlignment="Right" Click="CreatePoolButton_Click"/>
+    </Grid>
+</Window>

@@ -824,8 +824,6 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
-
-
                 <Grid x:Name="ManagePoolsPanel" Margin="24" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -834,10 +832,10 @@
 
                     <StackPanel Grid.Row="0" Margin="0,0,0,20">
                         <TextBlock Text="Manage Resource Pools" 
-                       Style="{StaticResource TitleTextBlockStyle}"/>
+                   Style="{StaticResource TitleTextBlockStyle}"/>
                         <TextBlock Text="Create and manage resource pools to organize your VMs and control access"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       Margin="0,8,0,0"/>
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   Margin="0,8,0,0"/>
                     </StackPanel>
 
                     <Grid Grid.Row="1">
@@ -856,18 +854,18 @@
 
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                 <Button x:Name="AddPoolButton" 
-                            Content="Add Pool"
-                            Click="AddPoolButton_Click"/>
+                        Content="Add Pool"
+                        Click="AddPoolButton_Click"/>
                                 <Button x:Name="RefreshPoolsButton" 
-                            Content="Refresh"
-                            Margin="8,0,0,0"
-                            Click="RefreshPoolsButton_Click"/>
+                        Content="Refresh"
+                        Margin="8,0,0,0"
+                        Click="RefreshPoolsButton_Click"/>
                             </StackPanel>
 
                             <ListView x:Name="PoolsListView"
-                          Grid.Row="1"
-                          SelectionMode="Single"
-                          SelectionChanged="PoolsListView_SelectionChanged">
+                      Grid.Row="1"
+                      SelectionMode="Single"
+                      SelectionChanged="PoolsListView_SelectionChanged">
                                 <ListView.ItemTemplate>
                                     <DataTemplate>
                                         <TextBlock Text="{Binding PoolId}" FontSize="14" Padding="4"/>
@@ -878,110 +876,60 @@
 
                         <!-- Separator -->
                         <Rectangle Grid.Column="1" 
-                       Fill="{ThemeResource DividerStrokeColorDefaultBrush}" 
-                       Width="1" 
-                       Margin="0,12"/>
+                   Fill="{ThemeResource DividerStrokeColorDefaultBrush}" 
+                   Width="1" 
+                   Margin="0,12"/>
 
                         <!-- Pool Details -->
-                        <Grid Grid.Column="2" x:Name="PoolDetailsPanel" Visibility="Collapsed">
-                            <StackPanel Spacing="16">
-                                <TextBox x:Name="PoolNameTextBox"
-                             Header="Pool Name"
-                             IsReadOnly="True"/>
+                        <Grid Grid.Column="2" x:Name="PoolDetailsPanel" Visibility="Visible">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel Spacing="16">
+                                    <TextBox x:Name="PoolIdTextBox"
+                         Header="Pool ID"
+                         IsReadOnly="True"/>
 
-                                <TextBox x:Name="PoolCommentTextBox"
-                             Header="Comment"
-                             AcceptsReturn="True"
-                             TextWrapping="Wrap"
-                             Height="100"/>
+                                    <TextBox x:Name="PoolCommentTextBox"
+                         Header="Comment"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         Height="100"/>
 
-                                <StackPanel>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto"/>
-                                            <RowDefinition Height="*"/>
-                                        </Grid.RowDefinitions>
+                                    <ListView x:Name="VMListView" Header="VMs in Pool" Height="200">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding name}" FontWeight="Bold" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="{Binding status}" Foreground="{Binding status, Converter={StaticResource StatusToColorConverterProxmox}}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
 
-                                        <TextBlock Text="Available VMs" 
-                   Style="{StaticResource SubtitleTextBlockStyle}"
-                   Margin="0,0,0,8"
-                   Grid.Column="0"
-                   Grid.Row="0"/>
+                                    <ListView x:Name="StorageListView" Header="Storage in Pool" Height="200">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding storage}" FontWeight="Bold" Margin="0,0,10,0"/>
+                                                    <TextBlock Text="{Binding type}"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
 
-                                        <TextBlock Text="Permissions in Pool" 
-                   Style="{StaticResource SubtitleTextBlockStyle}"
-                   Margin="0,0,0,8"
-                   Grid.Column="1"
-                   Grid.Row="0"/>
-
-                                        <ListView x:Name="AvailableVMsListView" Grid.Row="1">
-                                            <ListView.ItemContainerStyle>
-                                                <Style TargetType="ListViewItem">
-                                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                                </Style>
-                                            </ListView.ItemContainerStyle>
-                                            <ListView.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Margin="0,6">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel Grid.Column="0">
-                                                            <TextBlock Text="{Binding Name}" Style="{StaticResource BodyTextBlockStyle}" />
-                                                            <TextBlock Text="{Binding Node}" Style="{StaticResource CaptionTextBlockStyle}" Opacity="0.6" />
-                                                        </StackPanel>
-                                                        <TextBlock Grid.Column="1" 
-                            Text="{Binding Status}" 
-                            Foreground="{Binding Status, Converter={StaticResource StatusToColorConverterProxmox}}" 
-                            VerticalAlignment="Center" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ListView.ItemTemplate>
-                                        </ListView>
-
-                                       
-
-                                        <ListView x:Name="PoolPermissionsListView" 
-                  Grid.Row="1" 
-                  Grid.Column="1" 
-                  Margin="10,10,0,0">
-                                            <ListView.ItemTemplate>
-                                                <DataTemplate>
-                                                    <StackPanel Orientation="Horizontal">
-                                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay}" Margin="0,0,10,0"/>
-                                                        <TextBlock Text="{Binding Name}" FontWeight="Bold" Margin="0,0,10,0"/>
-                                                        <TextBlock Text="{Binding Type}" Foreground="{ThemeResource SystemControlPageTextBaseMediumBrush}"/>
-                                                    </StackPanel>
-                                                </DataTemplate>
-                                            </ListView.ItemTemplate>
-                                        </ListView>
-                                    </Grid>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="SavePoolButton"
+                            Content="Save Changes"
+                            Click="SavePoolButton_Click"
+                            Style="{StaticResource AccentButtonStyle}"/>
+                                        <Button x:Name="DeletePoolButton"
+                            Content="Delete Pool"
+                            Click="DeletePoolButton_Click"/>
+                                    </StackPanel>
                                 </StackPanel>
-
-
-
-
-
-
-                                <StackPanel Orientation="Horizontal" Spacing="8">
-                                    <Button x:Name="SavePoolButton"
-                                Content="Save Changes"
-                                Click="SavePoolButton_Click"
-                                Style="{StaticResource AccentButtonStyle}"/>
-                                    <Button x:Name="DeletePoolButton"
-                                Content="Delete Pool"
-                                Click="DeletePoolButton_Click"/>
-                                </StackPanel>
-                            </StackPanel>
+                            </ScrollViewer>
                         </Grid>
                     </Grid>
                 </Grid>
-
             </Grid>
         </NavigationView>
     </Grid>
