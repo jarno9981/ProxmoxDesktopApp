@@ -10,7 +10,7 @@
   <Identity
     Name="be9cbf6e-dbfb-474f-8905-f6ec7853343e"
     Publisher="CN=OpensourceProxMoxDesktop"
-    Version="1.0.0.0" />
+    Version="1.0.2.0" />
 
   <mp:PhoneIdentity PhoneProductId="be9cbf6e-dbfb-474f-8905-f6ec7853343e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
