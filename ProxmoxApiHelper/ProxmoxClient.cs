@@ -8,6 +8,7 @@ using System.Linq;
 using System.IO;
 using ProxmoxApiHelper.Helpers;
 using System.Text.Json.Serialization;
+using Newtonsoft.Json.Linq;
 
 namespace ProxmoxApiHelper
 {
@@ -105,8 +106,10 @@ namespace ProxmoxApiHelper
             _csrfToken = data.GetProperty("CSRFPreventionToken").GetString();
 
             UpdateHttpClientHeaders();
+
         }
 
+       
         private void UpdateHttpClientHeaders()
         {
             lock (_lock)

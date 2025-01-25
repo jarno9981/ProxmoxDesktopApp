@@ -9,6 +9,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="Efi\**" />
+    <Content Remove="Efi\**" />
+    <EmbeddedResource Remove="Efi\**" />
+    <None Remove="Efi\**" />
+    <Page Remove="Efi\**" />
+    <PRIResource Remove="Efi\**" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="AddPoolWindow.xaml" />
     <None Remove="CreateGroup.xaml" />
     <None Remove="CreateUserWindow.xaml" />
@@ -21,6 +29,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.241114003" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
