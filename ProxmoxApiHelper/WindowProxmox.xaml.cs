@@ -2458,6 +2458,17 @@ namespace ProxmoxApiHelper
         }
 
         // ──────────────────────────────────────────────────────────────────
+        // Shared status helper
+        // ──────────────────────────────────────────────────────────────────
+
+        private void ShowStatus(string message, InfoBarSeverity severity = InfoBarSeverity.Informational)
+        {
+            StatusInfoBarProxmox.Message = message;
+            StatusInfoBarProxmox.Severity = severity;
+            StatusInfoBarProxmox.IsOpen = true;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
         // VM Details panel
         // ──────────────────────────────────────────────────────────────────
 
@@ -2713,10 +2724,12 @@ namespace ProxmoxApiHelper
                 var nodeStatus = await _proxmoxClient.GetNodeStatusAsync(node);
                 if (nodeStatus != null)
                 {
-                    if (nodeStatus.TryGetValue("cpu", out var cpuVal) && double.TryParse(cpuVal?.ToString(), out double cpu))
                     {
-                        PerfNodeCpuBar.Value = cpu * 100;
-                        PerfNodeCpuText.Text = $"{cpu * 100:F1}%";
+                        double nodeCpu = 0;
+                        if (nodeStatus.TryGetValue("cpu", out var cpuVal))
+                            double.TryParse(cpuVal?.ToString(), out nodeCpu);
+                        PerfNodeCpuBar.Value = nodeCpu * 100;
+                        PerfNodeCpuText.Text = $"{nodeCpu * 100:F1}%";
                     }
                     if (nodeStatus.TryGetValue("memory", out var memVal) && memVal is System.Text.Json.JsonElement memJe)
                     {
