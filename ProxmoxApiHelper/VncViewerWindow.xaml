@@ -49,6 +49,15 @@
 
                 <!-- Right: Actions -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="ReloadButton"
+                            Click="ReloadButton_Click"
+                            ToolTipService.ToolTip="Reload console">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE72C;" FontSize="14"
+                                      FontFamily="Segoe Fluent Icons"/>
+                            <TextBlock Text="Reload"/>
+                        </StackPanel>
+                    </Button>
                     <Button x:Name="SendCtrlAltDelButton"
                             Click="SendCtrlAltDelButton_Click"
                             ToolTipService.ToolTip="Send Ctrl+Alt+Del">
@@ -60,22 +69,24 @@
                     </Button>
                     <Button x:Name="DisconnectButton"
                             Click="DisconnectButton_Click"
-                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
-                            ToolTipService.ToolTip="Disconnect from VM">
+                            ToolTipService.ToolTip="Close console">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <FontIcon Glyph="&#xE711;" FontSize="14"
-                                      FontFamily="Segoe Fluent Icons"/>
-                            <TextBlock Text="Disconnect"/>
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                            <TextBlock Text="Close"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
                         </StackPanel>
                     </Button>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- VNC Display -->
-        <Border Grid.Row="1"
-                Background="#FF000000">
-            <Image x:Name="VncImage" Stretch="Uniform"/>
+        <!-- Console WebView -->
+        <Border Grid.Row="1" Background="#FF0D0D0D">
+            <WebView2 x:Name="VncWebView"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"/>
         </Border>
 
         <!-- Status bar -->

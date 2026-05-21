@@ -2985,6 +2985,297 @@ namespace ProxmoxApiHelper
             return response.IsSuccessStatusCode;
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        // VNC / Console Proxies
+        // ──────────────────────────────────────────────────────────────────
+
+        public class VncProxyResult
+        {
+            public string Ticket { get; set; }
+            public string Cert { get; set; }
+            public int Port { get; set; }
+            public string User { get; set; }
+        }
+
+        public async Task<VncProxyResult> GetVmVncProxyAsync(string node, string vmid)
+        {
+            var pairs = new List<KeyValuePair<string, string>> { new("websocket", "1") };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/vncproxy", content));
+            var data = await DeserializeResponseAsync<Dictionary<string, object>>(response);
+            return new VncProxyResult
+            {
+                Ticket = data?.GetValueOrDefault("ticket")?.ToString(),
+                Cert = data?.GetValueOrDefault("cert")?.ToString(),
+                Port = data != null && data.TryGetValue("port", out var p) && int.TryParse(p?.ToString(), out int port) ? port : 5900,
+                User = data?.GetValueOrDefault("user")?.ToString()
+            };
+        }
+
+        public async Task<VncProxyResult> GetLxcVncProxyAsync(string node, string vmid)
+        {
+            var pairs = new List<KeyValuePair<string, string>> { new("websocket", "1") };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/vncproxy", content));
+            var data = await DeserializeResponseAsync<Dictionary<string, object>>(response);
+            return new VncProxyResult
+            {
+                Ticket = data?.GetValueOrDefault("ticket")?.ToString(),
+                Cert = data?.GetValueOrDefault("cert")?.ToString(),
+                Port = data != null && data.TryGetValue("port", out var p) && int.TryParse(p?.ToString(), out int port) ? port : 5900,
+                User = data?.GetValueOrDefault("user")?.ToString()
+            };
+        }
+
+        public async Task<Dictionary<string, object>> GetLxcTermProxyAsync(string node, string vmid)
+        {
+            using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>());
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/termproxy", content));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // QEMU Guest Agent
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetVmAgentNetworkInterfacesAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces"));
+                var data = await DeserializeResponseAsync<Dictionary<string, object>>(response);
+                if (data != null && data.TryGetValue("result", out var result) && result is JsonElement je && je.ValueKind == JsonValueKind.Array)
+                {
+                    var list = new List<Dictionary<string, object>>();
+                    foreach (var item in je.EnumerateArray())
+                    {
+                        var dict = new Dictionary<string, object>();
+                        foreach (var prop in item.EnumerateObject())
+                            dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : prop.Value.ToString();
+                        list.Add(dict);
+                    }
+                    return list;
+                }
+                return new List<Dictionary<string, object>>();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        public async Task<Dictionary<string, object>> GetVmAgentOsInfoAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/agent/get-osinfo"));
+                var data = await DeserializeResponseAsync<Dictionary<string, object>>(response);
+                if (data != null && data.TryGetValue("result", out var result) && result is JsonElement je)
+                {
+                    var dict = new Dictionary<string, object>();
+                    foreach (var prop in je.EnumerateObject())
+                        dict[prop.Name] = prop.Value.GetString() ?? prop.Value.ToString();
+                    return dict;
+                }
+                return new Dictionary<string, object>();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetVmAgentFsInfoAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/agent/get-fsinfo"));
+                var data = await DeserializeResponseAsync<Dictionary<string, object>>(response);
+                if (data != null && data.TryGetValue("result", out var result) && result is JsonElement je && je.ValueKind == JsonValueKind.Array)
+                {
+                    var list = new List<Dictionary<string, object>>();
+                    foreach (var item in je.EnumerateArray())
+                    {
+                        var dict = new Dictionary<string, object>();
+                        foreach (var prop in item.EnumerateObject())
+                            dict[prop.Name] = prop.Value.ValueKind == JsonValueKind.String ? prop.Value.GetString() : prop.Value.ToString();
+                        list.Add(dict);
+                    }
+                    return list;
+                }
+                return new List<Dictionary<string, object>>();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Performance / RRD data
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetVmRrdDataAsync(string node, string vmid, string timeframe = "hour", string cf = "AVERAGE")
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/rrddata?timeframe={timeframe}&cf={cf}"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetLxcRrdDataAsync(string node, string vmid, string timeframe = "hour", string cf = "AVERAGE")
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/rrddata?timeframe={timeframe}&cf={cf}"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetNodeRrdDataAsync(string node, string timeframe = "hour", string cf = "AVERAGE")
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/rrddata?timeframe={timeframe}&cf={cf}"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Pending VM config changes
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetVmPendingAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/pending"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // LXC network interfaces
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetLxcNetworkInterfacesAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/interfaces"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // SPICE proxy
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<Dictionary<string, object>> GetVmSpiceProxyAsync(string node, string vmid)
+        {
+            try
+            {
+                using var content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>());
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/spiceproxy", content));
+                return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Storage status per node
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetNodeStorageStatusAsync(string node)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/storage"));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Guest command execution
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<Dictionary<string, object>> ExecuteVmGuestCommandAsync(string node, string vmid, string command)
+        {
+            try
+            {
+                var pairs = new List<KeyValuePair<string, string>> { new("command", command) };
+                using var content = new FormUrlEncodedContent(pairs);
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/agent/exec", content));
+                return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        public async Task<Dictionary<string, object>> GetVmGuestCommandStatusAsync(string node, string vmid, int pid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/agent/exec-status?pid={pid}"));
+                return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Cluster resources (all VMs/nodes/storage in one call)
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetClusterResourcesAsync(string type = null)
+        {
+            try
+            {
+                string url = "/api2/json/cluster/resources";
+                if (!string.IsNullOrEmpty(type)) url += $"?type={type}";
+                var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync(url));
+                return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response) ?? new();
+            }
+            catch { return new List<Dictionary<string, object>>(); }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // VM/LXC live status (current CPU/mem/disk stats)
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<Dictionary<string, object>> GetVmCurrentStatusAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/status/current"));
+                return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
+        public async Task<Dictionary<string, object>> GetLxcCurrentStatusAsync(string node, string vmid)
+        {
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/current"));
+                return await DeserializeResponseAsync<Dictionary<string, object>>(response) ?? new();
+            }
+            catch { return new Dictionary<string, object>(); }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
