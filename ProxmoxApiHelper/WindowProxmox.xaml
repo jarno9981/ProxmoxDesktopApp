@@ -28,6 +28,7 @@
             <NavigationView.MenuItems>
                 <NavigationViewItem Icon="Home" Content="Dashboard" Tag="dashboard" />
                 <NavigationViewItem Icon="Add" Content="Create VM" Tag="create_vm" />
+                <NavigationViewItem Icon="AllApps" Content="Create LXC" Tag="create_lxc" />
                 <NavigationViewItem Icon="Globe" Content="Network Config" Tag="network_config" />
                 <NavigationViewItem Icon="OtherUser" Content="Groups - Users Config" Tag="grps_config" />
                 <NavigationViewItem Icon="PostUpdate" Content="Server Stats" Tag="server_stats" />
@@ -113,6 +114,7 @@
                                 <Button x:Name="ResetButtonProxmox" Content="Reset" Click="ResetButtonProxmox_Click" />
                                 <Button x:Name="ShutdownButtonProxmox" Content="Shutdown" Click="ShutdownButtonProxmox_Click" />
                                 <Button x:Name="EditButtonProxmox" Content="Edit VM" Click="EditButtonProxmox_Click" />
+                                <Button x:Name="DeleteButtonProxmox" Content="Delete" Click="DeleteButtonProxmox_Click" Foreground="{ThemeResource SystemFillColorCriticalBrush}" />
                                 <Button x:Name="ConsoleViewerProxmox" Visibility="Collapsed" IsEnabled="False" Content="View Console" Click="ConsoleViewerProxmox_Click" />
                             </StackPanel>
                         </Grid>
@@ -218,6 +220,33 @@
                                         <TextBlock Text="The ISO image to be mounted for OS installation"/>
                                     </ToolTipService.ToolTip>
                                 </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Network Configuration" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <ComboBox x:Name="CreateVmNetworkModelComboBoxProxmox" Header="Network Model *" PlaceholderText="Select Network Model">
+                                    <ComboBoxItem Content="VirtIO" />
+                                    <ComboBoxItem Content="E1000" />
+                                    <ComboBoxItem Content="RTL8139" />
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The type of network adapter for the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </ComboBox>
+                                <TextBox x:Name="CreateVmBridgeTextBoxProxmox" Header="Bridge *" PlaceholderText="vmbr0" Text="vmbr0">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="The network bridge to connect the VM to"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <TextBox x:Name="CreateVmVlanTagTextBoxProxmox" Header="VLAN Tag" PlaceholderText="Leave empty for no VLAN">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Optional VLAN tag (1-4094)"/>
+                                    </ToolTipService.ToolTip>
+                                </TextBox>
+                                <CheckBox x:Name="CreateVmFirewallCheckBoxProxmox" Content="Enable Firewall" IsChecked="True">
+                                    <ToolTipService.ToolTip>
+                                        <TextBlock Text="Enable the built-in firewall for the VM"/>
+                                    </ToolTipService.ToolTip>
+                                </CheckBox>
                             </StackPanel>
 
                             <StackPanel Spacing="8">
@@ -476,6 +505,132 @@
                     </ContentDialog.Content>
                 </ContentDialog>
 
+
+                <!-- Create LXC Panel -->
+                <Grid x:Name="CreateLxcPanelProxmox" Visibility="Collapsed" Margin="24">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Create New LXC Container" Style="{ThemeResource TitleTextBlockStyle}" Margin="0,0,0,24" />
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="16">
+                            <TextBlock Text="* Required field"
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Basic Information" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <TextBox x:Name="NewLxcIdTextBoxProxmox" Header="Container ID (auto-assigned)" IsReadOnly="True" PlaceholderText="Will be assigned automatically" />
+                                <TextBox x:Name="NewLxcHostnameTextBoxProxmox" Header="Hostname *" PlaceholderText="Enter hostname" />
+                                <ComboBox x:Name="LxcNodeSelectionComboBoxProxmox" Header="Node *" PlaceholderText="Select Node" SelectionChanged="LxcNodeSelectionComboBoxProxmox_SelectionChanged" />
+                                <ComboBox x:Name="LxcTemplateSelectionComboBoxProxmox" Header="OS Template *" PlaceholderText="Select template" />
+                                <ComboBox x:Name="LxcStorageSelectionComboBoxProxmox" Header="Storage *" PlaceholderText="Select Storage" />
+                                <ComboBox x:Name="LxcPoolSelectionComboBoxProxmox" Header="Pool" PlaceholderText="Select Pool (optional)" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Resources" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <NumberBox x:Name="NewLxcCpuNumberBoxProxmox" Header="CPU Cores *" Value="1" Minimum="1" Maximum="128" SpinButtonPlacementMode="Compact" />
+                                <NumberBox x:Name="NewLxcMemoryNumberBoxProxmox" Header="Memory (MB) *" Value="512" Minimum="16" SpinButtonPlacementMode="Compact" />
+                                <NumberBox x:Name="NewLxcSwapNumberBoxProxmox" Header="Swap (MB)" Value="512" Minimum="0" SpinButtonPlacementMode="Compact" />
+                                <NumberBox x:Name="NewLxcDiskNumberBoxProxmox" Header="Disk Size (GB) *" Value="8" Minimum="1" SpinButtonPlacementMode="Compact" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Network" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <TextBox x:Name="LxcBridgeTextBoxProxmox" Header="Bridge *" PlaceholderText="vmbr0" Text="vmbr0" />
+                                <TextBox x:Name="LxcVlanTagTextBoxProxmox" Header="VLAN Tag" PlaceholderText="Leave empty for no VLAN" />
+                                <ComboBox x:Name="LxcIpConfigComboBoxProxmox" Header="IP Configuration" PlaceholderText="Select" SelectionChanged="LxcIpConfigComboBoxProxmox_SelectionChanged">
+                                    <ComboBoxItem Content="DHCP" />
+                                    <ComboBoxItem Content="Static" />
+                                </ComboBox>
+                                <TextBox x:Name="LxcStaticIpTextBoxProxmox" Header="IP Address/CIDR" PlaceholderText="e.g. 192.168.1.100/24" IsEnabled="False" />
+                                <TextBox x:Name="LxcGatewayTextBoxProxmox" Header="Gateway" PlaceholderText="e.g. 192.168.1.1" IsEnabled="False" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Security" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <PasswordBox x:Name="LxcPasswordBoxProxmox" Header="Root Password" PlaceholderText="Enter root password" />
+                                <CheckBox x:Name="LxcUnprivilegedCheckBoxProxmox" Content="Unprivileged Container (recommended)" IsChecked="True" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="Advanced Options" Style="{ThemeResource SubtitleTextBlockStyle}" />
+                                <CheckBox x:Name="LxcOnBootCheckBoxProxmox" Content="Start on boot" />
+                                <CheckBox x:Name="LxcAutoStartCheckBoxProxmox" Content="Start after creation" />
+                                <CheckBox x:Name="LxcProtectionCheckBoxProxmox" Content="Enable Protection" />
+                                <TextBox x:Name="LxcTagsTextBoxProxmox" Header="Tags" PlaceholderText="Enter tags (comma separated)" />
+                                <TextBox x:Name="LxcDescriptionTextBoxProxmox" Header="Description" PlaceholderText="Enter description" AcceptsReturn="True" TextWrapping="Wrap" Height="80" />
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,16,0,0">
+                                <Button x:Name="CreateLxcButtonProxmox" Content="Create LXC" Click="CreateLxcButtonProxmox_Click" Style="{ThemeResource AccentButtonStyle}" />
+                                <Button x:Name="MassCreateLxcButtonProxmox" Content="Mass Create LXC" Click="MassCreateLxcButtonProxmox_Click" Style="{ThemeResource AccentButtonStyle}" />
+                                <ProgressRing x:Name="CreateLxcProgressRing" IsActive="False" Width="20" Height="20" />
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <ContentDialog x:Name="MassLxcCreationDialog"
+                               Title="Mass LXC Creation"
+                               PrimaryButtonText="Create Containers"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="MassLxcCreationDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Text="* Required field"
+                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                       Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                                       Margin="0,0,0,8"/>
+
+                            <Pivot Grid.Row="1">
+                                <PivotItem Header="Basic Info">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                        <StackPanel Spacing="8">
+                                            <NumberBox x:Name="MassLxcCountNumberBox" Header="Number of containers *" Value="5" Minimum="1" Maximum="50" SpinButtonPlacementMode="Compact" />
+                                            <ComboBox x:Name="MassLxcNodeSelectionComboBox" Header="Node *" PlaceholderText="Select Node" SelectionChanged="MassLxcNodeSelectionComboBox_SelectionChanged" />
+                                            <ComboBox x:Name="MassLxcTemplateSelectionComboBox" Header="OS Template *" PlaceholderText="Select template" />
+                                            <ComboBox x:Name="MassLxcStorageSelectionComboBox" Header="Storage *" PlaceholderText="Select Storage" />
+                                            <ComboBox x:Name="MassLxcPoolSelectionComboBox" Header="Pool" PlaceholderText="Select Pool (optional)" />
+                                            <TextBox x:Name="MassLxcNamePrefixTextBox" Header="Hostname Prefix" PlaceholderText="ct (optional, e.g. 'web' → web-1, web-2)" />
+                                            <NumberBox x:Name="MassLxcCpuCoresNumberBox" Header="CPU Cores *" Value="1" Minimum="1" Maximum="128" SpinButtonPlacementMode="Compact" />
+                                            <NumberBox x:Name="MassLxcMemoryMBNumberBox" Header="Memory (MB) *" Value="512" Minimum="16" SpinButtonPlacementMode="Compact" />
+                                            <NumberBox x:Name="MassLxcSwapMBNumberBox" Header="Swap (MB)" Value="512" Minimum="0" SpinButtonPlacementMode="Compact" />
+                                            <NumberBox x:Name="MassLxcDiskSizeGBNumberBox" Header="Disk Size (GB) *" Value="8" Minimum="1" SpinButtonPlacementMode="Compact" />
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </PivotItem>
+
+                                <PivotItem Header="Network and Security">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="400">
+                                        <StackPanel Spacing="8">
+                                            <TextBox x:Name="MassLxcBridgeTextBox" Header="Bridge *" PlaceholderText="vmbr0" Text="vmbr0" />
+                                            <PasswordBox x:Name="MassLxcPasswordBox" Header="Root Password" PlaceholderText="Enter root password" />
+                                            <CheckBox x:Name="MassLxcUnprivilegedCheckBox" Content="Unprivileged Container" IsChecked="True" />
+                                            <CheckBox x:Name="MassLxcOnBootCheckBox" Content="Start on boot" IsChecked="True" />
+                                            <CheckBox x:Name="MassLxcAutoStartCheckBox" Content="Auto start after creation" />
+                                            <CheckBox x:Name="MassLxcProtectionCheckBox" Content="Enable Protection" />
+                                            <TextBox x:Name="MassLxcTagsTextBox" Header="Tags" PlaceholderText="Enter tags" />
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </PivotItem>
+                            </Pivot>
+
+                            <ProgressBar Grid.Row="2" x:Name="MassLxcCreationProgressBar" Visibility="Collapsed" Margin="0,16,0,0" />
+                        </Grid>
+                    </ContentDialog.Content>
+                </ContentDialog>
 
                 <!-- Network Configuration Panel -->
                 <Grid x:Name="NetworkConfigPanelProxmox" Visibility="Collapsed" Margin="24">
