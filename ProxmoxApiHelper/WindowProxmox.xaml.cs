@@ -586,6 +586,11 @@ namespace ProxmoxApiHelper
             ServerStatsPanelProxmox.Visibility = Visibility.Collapsed;
             UsersGroups.Visibility = Visibility.Collapsed;
             ManagePoolsPanel.Visibility = Visibility.Collapsed;
+            SnapshotsPanelProxmox.Visibility = Visibility.Collapsed;
+            BackupPanelProxmox.Visibility = Visibility.Collapsed;
+            TasksPanelProxmox.Visibility = Visibility.Collapsed;
+            FirewallPanelProxmox.Visibility = Visibility.Collapsed;
+            NodeMgmtPanelProxmox.Visibility = Visibility.Collapsed;
 
             StopServerStatsTimer();
 
@@ -614,6 +619,26 @@ namespace ProxmoxApiHelper
                     break;
                 case "manage_pools":
                     ManagePoolsPanel.Visibility = Visibility.Visible;
+                    break;
+                case "snapshots":
+                    SnapshotsPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadSnapshotsPanelAsync();
+                    break;
+                case "backup":
+                    BackupPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadBackupPanelAsync();
+                    break;
+                case "tasks":
+                    TasksPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadTasksPanelAsync();
+                    break;
+                case "firewall":
+                    FirewallPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadFirewallPanelAsync();
+                    break;
+                case "node_mgmt":
+                    NodeMgmtPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadNodeMgmtPanelAsync();
                     break;
             }
         }
@@ -1682,6 +1707,818 @@ namespace ProxmoxApiHelper
                 MassLxcCreationProgressBar.Visibility = Visibility.Collapsed;
             }
         }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Suspend / Resume
+        // ══════════════════════════════════════════════════════════════════
+
+        private async void SuspendButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedVm == null || _selectedVm.Type != "qemu") return;
+            try
+            {
+                await _proxmoxClient.SuspendVmAsync(_selectedVm.Node, _selectedVm.Id);
+                StatusInfoBarProxmox.Message = $"Suspend command sent to VM {_selectedVm.Name}.";
+                StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                StatusInfoBarProxmox.IsOpen = true;
+                await Task.Delay(2000);
+                await RefreshVMList();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Suspend Error", ex.Message); }
+        }
+
+        private async void ResumeButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedVm == null || _selectedVm.Type != "qemu") return;
+            try
+            {
+                await _proxmoxClient.ResumeVmAsync(_selectedVm.Node, _selectedVm.Id);
+                StatusInfoBarProxmox.Message = $"Resume command sent to VM {_selectedVm.Name}.";
+                StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                StatusInfoBarProxmox.IsOpen = true;
+                await Task.Delay(2000);
+                await RefreshVMList();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Resume Error", ex.Message); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Clone
+        // ══════════════════════════════════════════════════════════════════
+
+        private async void CloneButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedVm == null) return;
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                var nodeNames = nodes.Select(n => n["node"].ToString()).ToList();
+                CloneTargetNodeComboBox.ItemsSource = nodeNames;
+
+                var storages = await _proxmoxClient.GetStorageAsync(_selectedVm.Node);
+                CloneStorageComboBox.ItemsSource = storages.Select(s => s.TryGetValue("storage", out var sv) ? sv?.ToString() : null).Where(s => s != null).ToList();
+
+                CloneNewNameTextBox.Text = $"{_selectedVm.Name}-clone";
+                CloneNewIdTextBox.Text = "";
+                CloneDialog.XamlRoot = this.Content.XamlRoot;
+                await CloneDialog.ShowAsync();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Clone Error", ex.Message); }
+        }
+
+        private async void CloneDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            if (_selectedVm == null) return;
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(CloneNewNameTextBox.Text))
+                { await ShowErrorDialog("Validation", "New name is required."); return; }
+
+                int newId = string.IsNullOrWhiteSpace(CloneNewIdTextBox.Text)
+                    ? await _proxmoxClient.GetNextVmIdAsync()
+                    : int.Parse(CloneNewIdTextBox.Text);
+
+                string targetNode = CloneTargetNodeComboBox.SelectedItem as string;
+                string storage = CloneStorageComboBox.SelectedItem as string;
+                bool full = CloneFullToggle.IsOn;
+
+                bool success;
+                if (_selectedVm.Type == "lxc")
+                    success = await _proxmoxClient.CloneLxcAsync(_selectedVm.Node, _selectedVm.Id, newId,
+                        CloneNewNameTextBox.Text, full, storage, targetNode);
+                else
+                    success = await _proxmoxClient.CloneVmAsync(_selectedVm.Node, _selectedVm.Id, newId,
+                        CloneNewNameTextBox.Text, full, storage, targetNode);
+
+                if (success)
+                {
+                    StatusInfoBarProxmox.Message = $"Clone started: new ID {newId}. Refresh in a moment.";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    StatusInfoBarProxmox.IsOpen = true;
+                }
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Clone Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Migrate
+        // ══════════════════════════════════════════════════════════════════
+
+        private async void MigrateButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedVm == null) return;
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                MigrateTargetNodeComboBox.ItemsSource = nodes
+                    .Select(n => n["node"].ToString())
+                    .Where(n => n != _selectedVm.Node)
+                    .ToList();
+
+                MigrateDialog.XamlRoot = this.Content.XamlRoot;
+                await MigrateDialog.ShowAsync();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Migrate Error", ex.Message); }
+        }
+
+        private async void MigrateDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            if (_selectedVm == null) return;
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (MigrateTargetNodeComboBox.SelectedItem is not string target)
+                { await ShowErrorDialog("Validation", "Select a target node."); return; }
+
+                bool online = MigrateOnlineToggle.IsOn;
+                bool withDisks = MigrateWithLocalDisksCheckBox.IsChecked == true;
+
+                bool success;
+                if (_selectedVm.Type == "lxc")
+                    success = await _proxmoxClient.MigrateLxcAsync(_selectedVm.Node, _selectedVm.Id, target, online);
+                else
+                    success = await _proxmoxClient.MigrateVmAsync(_selectedVm.Node, _selectedVm.Id, target, online, withDisks);
+
+                if (success)
+                {
+                    StatusInfoBarProxmox.Message = $"Migration to {target} started.";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    StatusInfoBarProxmox.IsOpen = true;
+                }
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Migrate Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Snapshots panel
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadSnapshotsPanelAsync()
+        {
+            try
+            {
+                var allVms = _vms.Select(v => new SnapshotVmEntry { DisplayName = $"{v.Type.ToUpper()} {v.Id} — {v.Name} ({v.Node})", Vm = v }).ToList();
+                SnapshotVmComboBox.ItemsSource = allVms;
+                SnapshotVmComboBox.DisplayMemberPath = "DisplayName";
+                if (_selectedVm != null)
+                    SnapshotVmComboBox.SelectedItem = allVms.FirstOrDefault(x => x.Vm.Id == _selectedVm.Id);
+            }
+            catch (Exception ex) { await ShowErrorDialog("Snapshots Error", ex.Message); }
+        }
+
+        private async void SnapshotVmComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SnapshotVmComboBox.SelectedItem is SnapshotVmEntry entry)
+                await RefreshSnapshotList(entry.Vm);
+        }
+
+        private async Task RefreshSnapshotList(ProxMachine vm)
+        {
+            try
+            {
+                SnapshotProgressRing.IsActive = true;
+                List<Dictionary<string, object>> snaps;
+                if (vm.Type == "lxc")
+                    snaps = await _proxmoxClient.GetLxcSnapshotsAsync(vm.Node, vm.Id);
+                else
+                    snaps = await _proxmoxClient.GetVmSnapshotsAsync(vm.Node, vm.Id);
+
+                var items = snaps
+                    .Where(s => s.TryGetValue("name", out var n) && n?.ToString() != "current")
+                    .Select(s => new SnapshotItem
+                    {
+                        Name = s.TryGetValue("name", out var n) ? n?.ToString() : "",
+                        Description = s.TryGetValue("description", out var d) ? d?.ToString() : "",
+                        Date = s.TryGetValue("snaptime", out var t) && long.TryParse(t?.ToString(), out long ts)
+                            ? DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime.ToString("g") : "",
+                    }).ToList();
+
+                SnapshotsListView.ItemsSource = items;
+            }
+            catch (Exception ex) { await ShowErrorDialog("Snapshot Load Error", ex.Message); }
+            finally { SnapshotProgressRing.IsActive = false; }
+        }
+
+        private async void CreateSnapshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SnapshotVmComboBox.SelectedItem is not SnapshotVmEntry) return;
+            SnapshotNameTextBox.Text = $"snap-{DateTime.Now:yyyyMMdd-HHmm}";
+            SnapshotDescriptionTextBox.Text = "";
+            SnapshotIncludeRamCheckBox.IsChecked = false;
+            CreateSnapshotDialog.XamlRoot = this.Content.XamlRoot;
+            await CreateSnapshotDialog.ShowAsync();
+        }
+
+        private async void CreateSnapshotDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            if (SnapshotVmComboBox.SelectedItem is not SnapshotVmEntry entry) return;
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (string.IsNullOrWhiteSpace(SnapshotNameTextBox.Text))
+                { await ShowErrorDialog("Validation", "Snapshot name is required."); return; }
+
+                bool success;
+                if (entry.Vm.Type == "lxc")
+                    success = await _proxmoxClient.CreateLxcSnapshotAsync(entry.Vm.Node, entry.Vm.Id,
+                        SnapshotNameTextBox.Text, SnapshotDescriptionTextBox.Text);
+                else
+                    success = await _proxmoxClient.CreateVmSnapshotAsync(entry.Vm.Node, entry.Vm.Id,
+                        SnapshotNameTextBox.Text, SnapshotDescriptionTextBox.Text,
+                        SnapshotIncludeRamCheckBox.IsChecked == true);
+
+                if (success)
+                    await RefreshSnapshotList(entry.Vm);
+                else
+                    throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Snapshot Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        private async void RollbackSnapshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SnapshotVmComboBox.SelectedItem is not SnapshotVmEntry entry) return;
+            if (SnapshotsListView.SelectedItem is not SnapshotItem snap) return;
+
+            ContentDialog confirm = new()
+            {
+                Title = "Confirm Rollback",
+                Content = $"Roll back '{entry.Vm.Name}' to snapshot '{snap.Name}'?\nAll changes since this snapshot will be lost.",
+                PrimaryButtonText = "Rollback",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+            try
+            {
+                SnapshotProgressRing.IsActive = true;
+                bool success = entry.Vm.Type == "lxc"
+                    ? await _proxmoxClient.RollbackLxcSnapshotAsync(entry.Vm.Node, entry.Vm.Id, snap.Name)
+                    : await _proxmoxClient.RollbackVmSnapshotAsync(entry.Vm.Node, entry.Vm.Id, snap.Name);
+                if (!success) throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { await ShowErrorDialog("Rollback Error", ex.Message); }
+            finally { SnapshotProgressRing.IsActive = false; }
+        }
+
+        private async void DeleteSnapshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SnapshotVmComboBox.SelectedItem is not SnapshotVmEntry entry) return;
+            if (SnapshotsListView.SelectedItem is not SnapshotItem snap) return;
+
+            ContentDialog confirm = new()
+            {
+                Title = "Delete Snapshot",
+                Content = $"Delete snapshot '{snap.Name}' from '{entry.Vm.Name}'?",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+
+            try
+            {
+                SnapshotProgressRing.IsActive = true;
+                bool success = entry.Vm.Type == "lxc"
+                    ? await _proxmoxClient.DeleteLxcSnapshotAsync(entry.Vm.Node, entry.Vm.Id, snap.Name)
+                    : await _proxmoxClient.DeleteVmSnapshotAsync(entry.Vm.Node, entry.Vm.Id, snap.Name);
+                if (success) await RefreshSnapshotList(entry.Vm);
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { await ShowErrorDialog("Delete Snapshot Error", ex.Message); }
+            finally { SnapshotProgressRing.IsActive = false; }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Backup panel
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadBackupPanelAsync()
+        {
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                var nodeNames = nodes.Select(n => n["node"].ToString()).ToList();
+                BackupNodeComboBox.ItemsSource = nodeNames;
+                BackupVmComboBox.ItemsSource = _vms.Select(v => $"{v.Type.ToUpper()} {v.Id} — {v.Name}").ToList();
+                await RefreshBackupListAsync();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Backup Panel Error", ex.Message); }
+        }
+
+        private async Task RefreshBackupListAsync()
+        {
+            try
+            {
+                BackupProgressRing.IsActive = true;
+                string node = BackupNodeComboBox.SelectedItem as string;
+                string storage = BackupStorageComboBox.SelectedItem as string;
+                var backups = await _proxmoxClient.GetBackupsAsync(node, storage);
+
+                BackupsListView.ItemsSource = backups.Select(b => new BackupItem
+                {
+                    VolId = b.TryGetValue("volid", out var v) ? v?.ToString() : "",
+                    Storage = b.TryGetValue("_storage", out var s) ? s?.ToString() : "",
+                    Node = b.TryGetValue("_node", out var n) ? n?.ToString() : "",
+                    SizeBytes = b.TryGetValue("size", out var sz) && long.TryParse(sz?.ToString(), out long bytes) ? bytes : 0,
+                    CreatedAt = b.TryGetValue("ctime", out var ct) && long.TryParse(ct?.ToString(), out long ts)
+                        ? DateTimeOffset.FromUnixTimeSeconds(ts).LocalDateTime : DateTime.MinValue,
+                }).ToList();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Backup Load Error", ex.Message); }
+            finally { BackupProgressRing.IsActive = false; }
+        }
+
+        private async void BackupNodeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (BackupNodeComboBox.SelectedItem is string node)
+            {
+                var storages = await _proxmoxClient.GetStorageAsync(node);
+                BackupStorageComboBox.ItemsSource = storages
+                    .Select(s => s.TryGetValue("storage", out var sv) ? sv?.ToString() : null)
+                    .Where(s => s != null).ToList();
+                BackupTargetStorageComboBox.ItemsSource = BackupStorageComboBox.ItemsSource;
+                RestoreStorageComboBox.ItemsSource = BackupStorageComboBox.ItemsSource;
+            }
+        }
+
+        private async void BackupStorageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+            => await RefreshBackupListAsync();
+
+        private async void RefreshBackupsButton_Click(object sender, RoutedEventArgs e)
+            => await RefreshBackupListAsync();
+
+        private async void CreateBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            CreateBackupDialog.XamlRoot = this.Content.XamlRoot;
+            await CreateBackupDialog.ShowAsync();
+        }
+
+        private async void CreateBackupDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            var deferral = args.GetDeferral();
+            try
+            {
+                string node = BackupNodeComboBox.SelectedItem as string;
+                if (string.IsNullOrEmpty(node)) { await ShowErrorDialog("Validation", "Select a node first."); return; }
+
+                if (BackupVmComboBox.SelectedItem is not string vmEntry) { await ShowErrorDialog("Validation", "Select a VM/LXC."); return; }
+                string vmid = vmEntry.Split(' ')[1];
+
+                string storage = (BackupTargetStorageComboBox.SelectedItem as string) ?? "";
+                string mode = (BackupModeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "snapshot";
+                string compress = (BackupCompressComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "zstd";
+
+                string upid = await _proxmoxClient.CreateBackupAsync(node, vmid, storage, mode, compress);
+                if (upid != null)
+                {
+                    StatusInfoBarProxmox.Message = $"Backup started (UPID: {upid.Substring(0, Math.Min(upid.Length, 30))}…)";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    StatusInfoBarProxmox.IsOpen = true;
+                    await Task.Delay(3000);
+                    await RefreshBackupListAsync();
+                }
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Backup Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        private async void RestoreBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (BackupsListView.SelectedItem is not BackupItem) return;
+            RestoreNewVmIdTextBox.Text = "";
+            RestoreHostnameTextBox.Text = "restored-container";
+            RestoreBackupDialog.XamlRoot = this.Content.XamlRoot;
+            await RestoreBackupDialog.ShowAsync();
+        }
+
+        private async void RestoreBackupDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            if (BackupsListView.SelectedItem is not BackupItem backup) return;
+            var deferral = args.GetDeferral();
+            try
+            {
+                string restoreStorage = RestoreStorageComboBox.SelectedItem as string ?? backup.Storage;
+                int newVmid = string.IsNullOrWhiteSpace(RestoreNewVmIdTextBox.Text)
+                    ? await _proxmoxClient.GetNextVmIdAsync()
+                    : int.Parse(RestoreNewVmIdTextBox.Text);
+                bool unique = RestoreUniqueCheckBox.IsChecked == true;
+
+                bool isLxc = backup.VolId?.Contains("-ct-") == true || backup.VolId?.Contains("vzdump-lxc") == true;
+                bool success;
+                if (isLxc)
+                    success = await _proxmoxClient.RestoreLxcBackupAsync(backup.Node, backup.Storage,
+                        backup.VolId, newVmid, RestoreHostnameTextBox.Text, unique);
+                else
+                    success = await _proxmoxClient.RestoreVmBackupAsync(backup.Node, backup.Storage,
+                        backup.VolId, newVmid, unique);
+
+                if (success)
+                {
+                    StatusInfoBarProxmox.Message = $"Restore started: new ID {newVmid}.";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    StatusInfoBarProxmox.IsOpen = true;
+                }
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Restore Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        private async void DeleteBackupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (BackupsListView.SelectedItem is not BackupItem backup) return;
+            ContentDialog confirm = new()
+            {
+                Title = "Delete Backup",
+                Content = $"Permanently delete backup '{backup.VolId}'?",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            try
+            {
+                BackupProgressRing.IsActive = true;
+                bool success = await _proxmoxClient.DeleteBackupAsync(backup.Node, backup.Storage, backup.VolId);
+                if (success) await RefreshBackupListAsync();
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { await ShowErrorDialog("Delete Backup Error", ex.Message); }
+            finally { BackupProgressRing.IsActive = false; }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Tasks panel
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadTasksPanelAsync()
+        {
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                TaskNodeComboBox.ItemsSource = nodes.Select(n => n["node"].ToString()).ToList();
+                if (TaskNodeComboBox.Items.Count > 0) TaskNodeComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex) { await ShowErrorDialog("Tasks Error", ex.Message); }
+        }
+
+        private async void TaskNodeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+            => await RefreshTasksAsync();
+
+        private async void RefreshTasksButton_Click(object sender, RoutedEventArgs e)
+            => await RefreshTasksAsync();
+
+        private async Task RefreshTasksAsync()
+        {
+            if (TaskNodeComboBox.SelectedItem is not string node) return;
+            try
+            {
+                var tasks = await _proxmoxClient.GetNodeTasksAsync(node, all: true);
+                TasksListView.ItemsSource = tasks.Select(t => new TaskItem
+                {
+                    Upid = t.TryGetValue("upid", out var u) ? u?.ToString() : "",
+                    Type = t.TryGetValue("type", out var tp) ? tp?.ToString() : "",
+                    Id = t.TryGetValue("id", out var id) ? id?.ToString() : "",
+                    Status = t.TryGetValue("status", out var s) ? s?.ToString() : "running",
+                    Node = node,
+                    StartTime = t.TryGetValue("starttime", out var st) && long.TryParse(st?.ToString(), out long sts)
+                        ? DateTimeOffset.FromUnixTimeSeconds(sts).LocalDateTime : DateTime.MinValue,
+                    EndTime = t.TryGetValue("endtime", out var et) && long.TryParse(et?.ToString(), out long ets)
+                        ? (DateTime?)DateTimeOffset.FromUnixTimeSeconds(ets).LocalDateTime : null,
+                }).ToList();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Task Load Error", ex.Message); }
+        }
+
+        private async void TasksListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TasksListView.SelectedItem is not TaskItem task) return;
+            try
+            {
+                var log = await _proxmoxClient.GetTaskLogAsync(task.Node, task.Upid);
+                var sb = new StringBuilder();
+                foreach (var line in log ?? new List<Dictionary<string, object>>())
+                {
+                    if (line.TryGetValue("t", out var text))
+                        sb.AppendLine(text?.ToString());
+                }
+                TaskLogTextBlock.Text = sb.ToString();
+            }
+            catch (Exception ex) { TaskLogTextBlock.Text = $"Error loading log: {ex.Message}"; }
+        }
+
+        private async void StopTaskButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (TasksListView.SelectedItem is not TaskItem task) return;
+            try
+            {
+                await _proxmoxClient.StopTaskAsync(task.Node, task.Upid);
+                await RefreshTasksAsync();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Stop Task Error", ex.Message); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Firewall panel
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadFirewallPanelAsync()
+        {
+            var allVms = _vms.Select(v => new SnapshotVmEntry { DisplayName = $"{v.Type.ToUpper()} {v.Id} — {v.Name} ({v.Node})", Vm = v }).ToList();
+            FirewallVmComboBox.ItemsSource = allVms;
+            FirewallVmComboBox.DisplayMemberPath = "DisplayName";
+        }
+
+        private async void FirewallVmComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (FirewallVmComboBox.SelectedItem is SnapshotVmEntry entry && entry.Vm.Type == "qemu")
+                await RefreshFirewallRulesAsync(entry.Vm);
+        }
+
+        private async void FirewallEnabledToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (FirewallVmComboBox.SelectedItem is not SnapshotVmEntry entry || entry.Vm.Type != "qemu") return;
+            try
+            {
+                await _proxmoxClient.SetVmFirewallEnabledAsync(entry.Vm.Node, entry.Vm.Id, FirewallEnabledToggle.IsOn);
+            }
+            catch (Exception ex) { await ShowErrorDialog("Firewall Error", ex.Message); }
+        }
+
+        private async void RefreshFirewallButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FirewallVmComboBox.SelectedItem is SnapshotVmEntry entry)
+                await RefreshFirewallRulesAsync(entry.Vm);
+        }
+
+        private async Task RefreshFirewallRulesAsync(ProxMachine vm)
+        {
+            try
+            {
+                var rules = await _proxmoxClient.GetFirewallRulesAsync(vm.Node, vm.Id);
+                FirewallRulesListView.ItemsSource = rules.Select((r, i) => new FirewallRuleItem
+                {
+                    Pos = r.TryGetValue("pos", out var p) ? p?.ToString() : i.ToString(),
+                    Action = r.TryGetValue("action", out var a) ? a?.ToString() : "",
+                    Type = r.TryGetValue("type", out var t) ? t?.ToString() : "",
+                    Source = r.TryGetValue("source", out var s) ? s?.ToString() : "any",
+                    Dest = r.TryGetValue("dest", out var d) ? d?.ToString() : "any",
+                    Comment = r.TryGetValue("comment", out var c) ? c?.ToString() : "",
+                    Enabled = !r.TryGetValue("enable", out var en) || en?.ToString() != "0",
+                }).ToList();
+            }
+            catch (Exception ex) { await ShowErrorDialog("Firewall Rules Error", ex.Message); }
+        }
+
+        private async void AddFirewallRuleButton_Click(object sender, RoutedEventArgs e)
+        {
+            FwRuleActionComboBox.SelectedIndex = 0;
+            FwRuleTypeComboBox.SelectedIndex = 0;
+            FwRuleProtoComboBox.SelectedIndex = 1;
+            FwRuleSourceTextBox.Text = "";
+            FwRuleDestTextBox.Text = "";
+            FwRuleDportTextBox.Text = "";
+            FwRuleSportTextBox.Text = "";
+            FwRuleCommentTextBox.Text = "";
+            FwRuleEnabledCheckBox.IsChecked = true;
+            AddFirewallRuleDialog.XamlRoot = this.Content.XamlRoot;
+            await AddFirewallRuleDialog.ShowAsync();
+        }
+
+        private async void AddFirewallRuleDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            if (FirewallVmComboBox.SelectedItem is not SnapshotVmEntry entry) return;
+            var deferral = args.GetDeferral();
+            try
+            {
+                string action = (FwRuleActionComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "ACCEPT";
+                string type = (FwRuleTypeComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "in";
+                string proto = (FwRuleProtoComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "";
+
+                bool success = await _proxmoxClient.AddFirewallRuleAsync(
+                    entry.Vm.Node, entry.Vm.Id,
+                    action, type,
+                    FwRuleSourceTextBox.Text.Trim(),
+                    FwRuleDestTextBox.Text.Trim(),
+                    proto,
+                    FwRuleDportTextBox.Text.Trim(),
+                    FwRuleSportTextBox.Text.Trim(),
+                    FwRuleCommentTextBox.Text.Trim(),
+                    FwRuleEnabledCheckBox.IsChecked == true);
+
+                if (success) await RefreshFirewallRulesAsync(entry.Vm);
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { args.Cancel = true; await ShowErrorDialog("Add Rule Error", ex.Message); }
+            finally { deferral.Complete(); }
+        }
+
+        private async void DeleteFirewallRuleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (FirewallVmComboBox.SelectedItem is not SnapshotVmEntry entry) return;
+            if (FirewallRulesListView.SelectedItem is not FirewallRuleItem rule) return;
+            if (!int.TryParse(rule.Pos, out int pos)) return;
+            try
+            {
+                bool success = await _proxmoxClient.DeleteFirewallRuleAsync(entry.Vm.Node, entry.Vm.Id, pos);
+                if (success) await RefreshFirewallRulesAsync(entry.Vm);
+                else throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { await ShowErrorDialog("Delete Rule Error", ex.Message); }
+        }
+
+        // ══════════════════════════════════════════════════════════════════
+        // Node Management panel
+        // ══════════════════════════════════════════════════════════════════
+
+        private async Task LoadNodeMgmtPanelAsync()
+        {
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                NodeMgmtNodeComboBox.ItemsSource = nodes.Select(n => n["node"].ToString()).ToList();
+                if (NodeMgmtNodeComboBox.Items.Count > 0) NodeMgmtNodeComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex) { await ShowErrorDialog("Node Mgmt Error", ex.Message); }
+        }
+
+        private async void NodeMgmtNodeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (NodeMgmtNodeComboBox.SelectedItem is string node)
+            {
+                await LoadNodeDnsAsync(node);
+                await LoadNodeSyslogAsync(node);
+            }
+        }
+
+        private async Task LoadNodeDnsAsync(string node)
+        {
+            try
+            {
+                var dns = await _proxmoxClient.GetNodeDnsAsync(node);
+                NodeDnsSearchTextBox.Text = dns.TryGetValue("search", out var s) ? s?.ToString() : "";
+                NodeDns1TextBox.Text = dns.TryGetValue("dns1", out var d1) ? d1?.ToString() : "";
+                NodeDns2TextBox.Text = dns.TryGetValue("dns2", out var d2) ? d2?.ToString() : "";
+                NodeDns3TextBox.Text = dns.TryGetValue("dns3", out var d3) ? d3?.ToString() : "";
+            }
+            catch { }
+        }
+
+        private async Task LoadNodeSyslogAsync(string node)
+        {
+            try
+            {
+                var lines = await _proxmoxClient.GetNodeSyslogAsync(node, 200);
+                var sb = new StringBuilder();
+                foreach (var line in lines ?? new List<Dictionary<string, object>>())
+                {
+                    if (line.TryGetValue("t", out var t)) sb.AppendLine(t?.ToString());
+                }
+                SyslogTextBlock.Text = sb.ToString();
+            }
+            catch (Exception ex) { SyslogTextBlock.Text = $"Could not load syslog: {ex.Message}"; }
+        }
+
+        private async void NodeRebootButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (NodeMgmtNodeComboBox.SelectedItem is not string node) return;
+            ContentDialog confirm = new()
+            {
+                Title = "Reboot Node",
+                Content = $"Reboot node '{node}'? All VMs on this node will be affected.",
+                PrimaryButtonText = "Reboot",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            try { await _proxmoxClient.RebootNodeAsync(node); }
+            catch (Exception ex) { await ShowErrorDialog("Reboot Error", ex.Message); }
+        }
+
+        private async void NodeShutdownButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (NodeMgmtNodeComboBox.SelectedItem is not string node) return;
+            ContentDialog confirm = new()
+            {
+                Title = "Shutdown Node",
+                Content = $"Shut down node '{node}'? All VMs on this node will be stopped.",
+                PrimaryButtonText = "Shutdown",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+            if (await confirm.ShowAsync() != ContentDialogResult.Primary) return;
+            try { await _proxmoxClient.ShutdownNodeAsync(node); }
+            catch (Exception ex) { await ShowErrorDialog("Shutdown Error", ex.Message); }
+        }
+
+        private async void SaveNodeDnsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (NodeMgmtNodeComboBox.SelectedItem is not string node) return;
+            try
+            {
+                bool success = await _proxmoxClient.UpdateNodeDnsAsync(node,
+                    NodeDnsSearchTextBox.Text.Trim(),
+                    NodeDns1TextBox.Text.Trim(),
+                    NodeDns2TextBox.Text.Trim(),
+                    NodeDns3TextBox.Text.Trim());
+                if (!success) throw new Exception("Server returned failure.");
+            }
+            catch (Exception ex) { await ShowErrorDialog("DNS Save Error", ex.Message); }
+        }
+
+        private async void RefreshSyslogButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (NodeMgmtNodeComboBox.SelectedItem is string node)
+                await LoadNodeSyslogAsync(node);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // Helper data models
+    // ──────────────────────────────────────────────────────────────────────
+
+    public class SnapshotVmEntry
+    {
+        public string DisplayName { get; set; }
+        public ProxMachine Vm { get; set; }
+    }
+
+    public class SnapshotItem
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public string Date { get; set; }
+    }
+
+    public class BackupItem
+    {
+        public string VolId { get; set; }
+        public string Storage { get; set; }
+        public string Node { get; set; }
+        public long SizeBytes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string SizeFormatted => SizeBytes > 1_073_741_824
+            ? $"{SizeBytes / 1_073_741_824.0:F1} GB"
+            : $"{SizeBytes / 1_048_576.0:F0} MB";
+        public string DateFormatted => CreatedAt == DateTime.MinValue ? "" : CreatedAt.ToString("g");
+    }
+
+    public class TaskItem
+    {
+        public string Upid { get; set; }
+        public string Type { get; set; }
+        public string Id { get; set; }
+        public string Status { get; set; }
+        public string Node { get; set; }
+        public DateTime StartTime { get; set; }
+        public DateTime? EndTime { get; set; }
+        public string Duration
+        {
+            get
+            {
+                var end = EndTime ?? DateTime.Now;
+                var span = end - StartTime;
+                return span.TotalSeconds < 60 ? $"{(int)span.TotalSeconds}s"
+                    : span.TotalMinutes < 60 ? $"{(int)span.TotalMinutes}m {span.Seconds}s"
+                    : $"{(int)span.TotalHours}h {span.Minutes}m";
+            }
+        }
+        public SolidColorBrush StatusColor => Status?.ToLower() switch
+        {
+            "ok" => new SolidColorBrush(Color.FromArgb(255, 34, 197, 94)),
+            "error" => new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),
+            _ => new SolidColorBrush(Color.FromArgb(255, 234, 179, 8)),
+        };
+    }
+
+    public class FirewallRuleItem
+    {
+        public string Pos { get; set; }
+        public string Action { get; set; }
+        public string Type { get; set; }
+        public string Source { get; set; }
+        public string Dest { get; set; }
+        public string Comment { get; set; }
+        public bool Enabled { get; set; }
+        public SolidColorBrush ActionBrush => Action?.ToUpper() switch
+        {
+            "ACCEPT" => new SolidColorBrush(Color.FromArgb(40, 34, 197, 94)),
+            "DROP" => new SolidColorBrush(Color.FromArgb(40, 239, 68, 68)),
+            "REJECT" => new SolidColorBrush(Color.FromArgb(40, 234, 179, 8)),
+            _ => new SolidColorBrush(Colors.Transparent),
+        };
+        public SolidColorBrush EnabledBrush => Enabled
+            ? new SolidColorBrush(Color.FromArgb(255, 34, 197, 94))
+            : new SolidColorBrush(Color.FromArgb(255, 156, 163, 175));
     }
 
 

@@ -78,6 +78,32 @@
                         <FontIcon Glyph="&#xEA8A;" FontFamily="Segoe Fluent Icons"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItemSeparator/>
+                <NavigationViewItem Content="Snapshots" Tag="snapshots">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE81C;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Backup" Tag="backup">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8AD;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Tasks" Tag="tasks">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D5;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Firewall" Tag="firewall">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B6;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Node Mgmt" Tag="node_mgmt">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <Grid>
@@ -256,6 +282,31 @@
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE70F;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
                                                 <TextBlock Text="Edit"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="SuspendButtonProxmox" Click="SuspendButtonProxmox_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE769;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                                <TextBlock Text="Suspend"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="ResumeButtonProxmox" Click="ResumeButtonProxmox_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE768;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                <TextBlock Text="Resume"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="CloneButtonProxmox" Click="CloneButtonProxmox_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE8C8;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                                <TextBlock Text="Clone"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="MigrateButtonProxmox" Click="MigrateButtonProxmox_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE72D;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                                <TextBlock Text="Migrate"/>
                                             </StackPanel>
                                         </Button>
                                         <Button x:Name="ConsoleViewerProxmox"
@@ -1472,6 +1523,800 @@
                             </ScrollViewer>
                         </Border>
                     </Grid>
+                </Grid>
+
+                <!-- ═══ SNAPSHOTS ═══ -->
+                <Grid x:Name="SnapshotsPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE81C;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Snapshots" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Manage VM and LXC snapshots" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- VM selector card -->
+                    <Border Grid.Row="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="SnapshotVmComboBox" Header="Select VM / Container"
+                                      PlaceholderText="Choose a VM or LXC"
+                                      HorizontalAlignment="Stretch"
+                                      SelectionChanged="SnapshotVmComboBox_SelectionChanged"/>
+                            <Button Grid.Column="1" VerticalAlignment="Bottom"
+                                    Click="CreateSnapshotButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE710;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Create Snapshot"/>
+                                </StackPanel>
+                            </Button>
+                            <ProgressRing x:Name="SnapshotProgressRing" Grid.Column="2"
+                                          IsActive="False" Width="20" Height="20"
+                                          VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Snapshot list -->
+                    <Border Grid.Row="2"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="SnapshotsListView" SelectionMode="Single" Padding="4">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="32" Height="32" CornerRadius="6"
+                                                    Background="{ThemeResource SystemFillColorNeutralBackgroundBrush}"
+                                                    VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE81C;" FontSize="14" FontFamily="Segoe Fluent Icons"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.7"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Name}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                <TextBlock Text="{Binding Description}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding Date}"
+                                                       Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.5"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <!-- Snapshot actions -->
+                            <Border Grid.Row="1" Padding="12,10"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="0,1,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="RollbackSnapshotButton" Click="RollbackSnapshotButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE7A7;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                            <TextBlock Text="Rollback"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="DeleteSnapshotButton" Click="DeleteSnapshotButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                            <TextBlock Text="Delete" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Create Snapshot dialog -->
+                <ContentDialog x:Name="CreateSnapshotDialog"
+                               Title="Create Snapshot"
+                               PrimaryButtonText="Create"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="CreateSnapshotDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="360">
+                            <TextBox x:Name="SnapshotNameTextBox" Header="Snapshot Name *"
+                                     PlaceholderText="e.g. before-upgrade"
+                                     HorizontalAlignment="Stretch"/>
+                            <TextBox x:Name="SnapshotDescriptionTextBox" Header="Description"
+                                     PlaceholderText="Optional description"
+                                     HorizontalAlignment="Stretch"/>
+                            <CheckBox x:Name="SnapshotIncludeRamCheckBox"
+                                      Content="Include RAM state (VM only, slower)"/>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- Clone dialog -->
+                <ContentDialog x:Name="CloneDialog"
+                               Title="Clone VM / Container"
+                               PrimaryButtonText="Clone"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="CloneDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="400">
+                            <InfoBar IsOpen="True" IsClosable="False" Severity="Informational"
+                                     Title="Clone"
+                                     Message="A full clone creates a completely independent copy. A linked clone shares the base disk (faster but requires the original)."/>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="CloneNewIdTextBox" Header="New VM ID"
+                                         PlaceholderText="Auto-assigned" HorizontalAlignment="Stretch"/>
+                                <TextBox x:Name="CloneNewNameTextBox" Grid.Column="1" Header="Name *"
+                                         PlaceholderText="clone-of-vm" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <ComboBox x:Name="CloneTargetNodeComboBox" Header="Target Node"
+                                      PlaceholderText="Same node" HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="CloneStorageComboBox" Header="Storage"
+                                      PlaceholderText="Same storage" HorizontalAlignment="Stretch"/>
+                            <ToggleSwitch x:Name="CloneFullToggle" Header="Clone Type"
+                                         OnContent="Full Clone" OffContent="Linked Clone" IsOn="True"/>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- Migrate dialog -->
+                <ContentDialog x:Name="MigrateDialog"
+                               Title="Migrate VM / Container"
+                               PrimaryButtonText="Migrate"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="MigrateDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="360">
+                            <ComboBox x:Name="MigrateTargetNodeComboBox" Header="Target Node *"
+                                      PlaceholderText="Select destination node"
+                                      HorizontalAlignment="Stretch"/>
+                            <ToggleSwitch x:Name="MigrateOnlineToggle" Header="Live Migration"
+                                         OnContent="Online (no downtime)" OffContent="Offline" IsOn="True"/>
+                            <CheckBox x:Name="MigrateWithLocalDisksCheckBox"
+                                      Content="Migrate local disks (VMs only)"/>
+                            <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
+                                     Title="Note"
+                                     Message="Live migration requires shared storage or local-disk migration enabled. Ensure the target node has sufficient resources."/>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- ═══ BACKUP ═══ -->
+                <Grid x:Name="BackupPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE8AD;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Backup &amp; Restore" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Create and manage vzdump backups" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- Controls -->
+                    <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="BackupNodeComboBox" Header="Node"
+                                      PlaceholderText="Select node"
+                                      SelectionChanged="BackupNodeComboBox_SelectionChanged"
+                                      HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="BackupStorageComboBox" Grid.Column="1" Header="Storage"
+                                      PlaceholderText="All storages"
+                                      SelectionChanged="BackupStorageComboBox_SelectionChanged"
+                                      HorizontalAlignment="Stretch"/>
+                            <Button Grid.Column="2" VerticalAlignment="Bottom" Click="RefreshBackupsButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                            <Button Grid.Column="3" VerticalAlignment="Bottom"
+                                    Click="CreateBackupButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE8AD;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Create Backup"/>
+                                </StackPanel>
+                            </Button>
+                            <ProgressRing x:Name="BackupProgressRing" Grid.Column="4"
+                                          IsActive="False" Width="20" Height="20"
+                                          VerticalAlignment="Bottom" Margin="0,0,0,6"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Backup list -->
+                    <Border Grid.Row="2" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="BackupsListView" SelectionMode="Single" Padding="4">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="32" Height="32" CornerRadius="6"
+                                                    Background="{ThemeResource SystemFillColorNeutralBackgroundBrush}"
+                                                    VerticalAlignment="Center">
+                                                <FontIcon Glyph="&#xE8AD;" FontSize="14" FontFamily="Segoe Fluent Icons"
+                                                          HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0.7"/>
+                                            </Border>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding VolId}" Style="{ThemeResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <TextBlock Text="{Binding Storage}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                                    <TextBlock Text="|" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.3"/>
+                                                    <TextBlock Text="{Binding Node}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding SizeFormatted}"
+                                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                                       VerticalAlignment="Center" Opacity="0.7"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding DateFormatted}"
+                                                       Style="{ThemeResource CaptionTextBlockStyle}"
+                                                       VerticalAlignment="Center" Opacity="0.5" Margin="8,0,0,0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <!-- Backup actions -->
+                            <Border Grid.Row="1" Padding="12,10"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="0,1,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button x:Name="RestoreBackupButton" Click="RestoreBackupButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE7A7;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                            <TextBlock Text="Restore"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button x:Name="DeleteBackupButton" Click="DeleteBackupButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE74D;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                            <TextBlock Text="Delete" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Create Backup dialog -->
+                <ContentDialog x:Name="CreateBackupDialog"
+                               Title="Create Backup"
+                               PrimaryButtonText="Start Backup"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="CreateBackupDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="400">
+                            <ComboBox x:Name="BackupVmComboBox" Header="VM / Container *"
+                                      PlaceholderText="Select VM or LXC"
+                                      HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="BackupTargetStorageComboBox" Header="Storage *"
+                                      PlaceholderText="Select storage"
+                                      HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="BackupModeComboBox" Header="Backup Mode" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="snapshot" IsSelected="True"/>
+                                <ComboBoxItem Content="suspend"/>
+                                <ComboBoxItem Content="stop"/>
+                            </ComboBox>
+                            <ComboBox x:Name="BackupCompressComboBox" Header="Compression" HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="zstd" IsSelected="True"/>
+                                <ComboBoxItem Content="lzo"/>
+                                <ComboBoxItem Content="gzip"/>
+                                <ComboBoxItem Content="0" />
+                            </ComboBox>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- Restore Backup dialog -->
+                <ContentDialog x:Name="RestoreBackupDialog"
+                               Title="Restore Backup"
+                               PrimaryButtonText="Restore"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="RestoreBackupDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="380">
+                            <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
+                                     Title="Warning"
+                                     Message="Restoring will create a new VM/LXC with a new ID. Existing VMs are not overwritten."/>
+                            <TextBox x:Name="RestoreNewVmIdTextBox" Header="New VM ID"
+                                     PlaceholderText="Auto-assigned" HorizontalAlignment="Stretch"/>
+                            <ComboBox x:Name="RestoreStorageComboBox" Header="Target Storage *"
+                                      PlaceholderText="Select storage"
+                                      HorizontalAlignment="Stretch"/>
+                            <TextBox x:Name="RestoreHostnameTextBox" Header="Hostname (LXC restore only)"
+                                     PlaceholderText="restored-container" HorizontalAlignment="Stretch"/>
+                            <CheckBox x:Name="RestoreUniqueCheckBox"
+                                      Content="Generate unique MAC addresses" IsChecked="True"/>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- ═══ TASKS ═══ -->
+                <Grid x:Name="TasksPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="{ThemeResource AccentButtonBackground}">
+                                <FontIcon Glyph="&#xE9D5;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                          Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Task Monitor" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="View and manage running tasks" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <ComboBox x:Name="TaskNodeComboBox" PlaceholderText="Select node"
+                                      SelectionChanged="TaskNodeComboBox_SelectionChanged"
+                                      MinWidth="160"/>
+                            <Button Click="RefreshTasksButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Task list + log viewer -->
+                    <Grid Grid.Row="2" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Task list -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <ListView x:Name="TasksListView" SelectionMode="Single"
+                                          SelectionChanged="TasksListView_SelectionChanged"
+                                          Padding="4">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="CornerRadius" Value="6"/>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnSpacing="8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                         Fill="{Binding StatusColor}"/>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Type}" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                                    <TextBlock Text="{Binding Id}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="2" Text="{Binding Duration}"
+                                                           Style="{ThemeResource CaptionTextBlockStyle}"
+                                                           Opacity="0.5" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                                <Border Grid.Row="1" Padding="12,10"
+                                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                        BorderThickness="0,1,0,0">
+                                    <Button x:Name="StopTaskButton" Click="StopTaskButton_Click">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE71A;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                                      Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                            <TextBlock Text="Stop Task" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Task log -->
+                        <Border Grid.Column="1"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="0">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <Border Padding="16,12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                    <TextBlock Text="Task Log" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                </Border>
+                                <ScrollViewer Grid.Row="1" Padding="16,12" VerticalScrollBarVisibility="Auto">
+                                    <TextBlock x:Name="TaskLogTextBlock"
+                                               FontFamily="Cascadia Code, Consolas, Courier New"
+                                               FontSize="12"
+                                               TextWrapping="Wrap"
+                                               IsTextSelectionEnabled="True"
+                                               Opacity="0.85"/>
+                                </ScrollViewer>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══ FIREWALL ═══ -->
+                <Grid x:Name="FirewallPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8" Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE8B6;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Firewall Rules" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Manage per-VM firewall rules" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!-- VM selector + controls -->
+                    <Border Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="FirewallVmComboBox" Header="VM"
+                                      PlaceholderText="Select a VM"
+                                      SelectionChanged="FirewallVmComboBox_SelectionChanged"
+                                      HorizontalAlignment="Stretch"/>
+                            <ToggleSwitch x:Name="FirewallEnabledToggle"
+                                          Grid.Column="1"
+                                          Header="Firewall"
+                                          OnContent="Enabled" OffContent="Disabled"
+                                          Toggled="FirewallEnabledToggle_Toggled"
+                                          VerticalAlignment="Bottom"/>
+                            <Button Grid.Column="2" VerticalAlignment="Bottom"
+                                    Click="AddFirewallRuleButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE710;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Add Rule"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="3" VerticalAlignment="Bottom"
+                                    Click="RefreshFirewallButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <!-- Firewall rules list -->
+                    <Border Grid.Row="2" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+                            <ListView x:Name="FirewallRulesListView" SelectionMode="Single" Padding="4">
+                                <ListView.ItemContainerStyle>
+                                    <Style TargetType="ListViewItem">
+                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                        <Setter Property="Padding" Value="8,6"/>
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </ListView.ItemContainerStyle>
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="60"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Pos}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center" Opacity="0.5"/>
+                                            <Border Grid.Column="1" CornerRadius="4" Padding="6,2"
+                                                    Background="{Binding ActionBrush}">
+                                                <TextBlock Text="{Binding Action}" Style="{ThemeResource CaptionTextBlockStyle}"
+                                                           FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Source}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Dest}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Comment}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                            <Ellipse Grid.Column="5" Width="8" Height="8" VerticalAlignment="Center"
+                                                     Fill="{Binding EnabledBrush}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <Border Grid.Row="1" Padding="12,10"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="0,1,0,0">
+                                <Button x:Name="DeleteFirewallRuleButton" Click="DeleteFirewallRuleButton_Click">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <FontIcon Glyph="&#xE74D;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                        <TextBlock Text="Delete Rule" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                    </StackPanel>
+                                </Button>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <!-- Add Firewall Rule dialog -->
+                <ContentDialog x:Name="AddFirewallRuleDialog"
+                               Title="Add Firewall Rule"
+                               PrimaryButtonText="Add Rule"
+                               CloseButtonText="Cancel"
+                               PrimaryButtonClick="AddFirewallRuleDialog_PrimaryButtonClick">
+                    <ContentDialog.Content>
+                        <StackPanel Spacing="12" MinWidth="420">
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="FwRuleActionComboBox" Header="Action *" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="ACCEPT" IsSelected="True"/>
+                                    <ComboBoxItem Content="DROP"/>
+                                    <ComboBoxItem Content="REJECT"/>
+                                </ComboBox>
+                                <ComboBox x:Name="FwRuleTypeComboBox" Grid.Column="1" Header="Direction *" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content="in" IsSelected="True"/>
+                                    <ComboBoxItem Content="out"/>
+                                </ComboBox>
+                            </Grid>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="FwRuleSourceTextBox" Header="Source" PlaceholderText="e.g. 192.168.1.0/24" HorizontalAlignment="Stretch"/>
+                                <TextBox x:Name="FwRuleDestTextBox" Grid.Column="1" Header="Destination" PlaceholderText="any" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <Grid ColumnSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <ComboBox x:Name="FwRuleProtoComboBox" Header="Protocol" HorizontalAlignment="Stretch">
+                                    <ComboBoxItem Content=""/>
+                                    <ComboBoxItem Content="tcp" IsSelected="True"/>
+                                    <ComboBoxItem Content="udp"/>
+                                    <ComboBoxItem Content="icmp"/>
+                                </ComboBox>
+                                <TextBox x:Name="FwRuleDportTextBox" Grid.Column="1" Header="Dest Port" PlaceholderText="e.g. 80,443" HorizontalAlignment="Stretch"/>
+                                <TextBox x:Name="FwRuleSportTextBox" Grid.Column="2" Header="Src Port" PlaceholderText="any" HorizontalAlignment="Stretch"/>
+                            </Grid>
+                            <TextBox x:Name="FwRuleCommentTextBox" Header="Comment" PlaceholderText="Optional note" HorizontalAlignment="Stretch"/>
+                            <CheckBox x:Name="FwRuleEnabledCheckBox" Content="Enable rule" IsChecked="True"/>
+                        </StackPanel>
+                    </ContentDialog.Content>
+                </ContentDialog>
+
+                <!-- ═══ NODE MANAGEMENT ═══ -->
+                <Grid x:Name="NodeMgmtPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Margin="0,0,0,16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <Border Width="36" Height="36" CornerRadius="8" Background="{ThemeResource AccentButtonBackground}">
+                                <FontIcon Glyph="&#xE8B7;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                          Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="Node Management" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                                <TextBlock Text="Node power, DNS, and system log" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                            </StackPanel>
+                        </StackPanel>
+                        <ComboBox x:Name="NodeMgmtNodeComboBox" Grid.Column="1"
+                                  PlaceholderText="Select node"
+                                  SelectionChanged="NodeMgmtNodeComboBox_SelectionChanged"
+                                  MinWidth="160"/>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1">
+                        <StackPanel Spacing="12">
+
+                            <!-- Power control card -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE7E8;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Power Control" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <InfoBar IsOpen="True" IsClosable="False" Severity="Warning"
+                                             Title="Caution"
+                                             Message="Rebooting or shutting down a node will affect all VMs and containers running on it."/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button x:Name="NodeRebootButton" Click="NodeRebootButton_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                                                <TextBlock Text="Reboot Node"/>
+                                            </StackPanel>
+                                        </Button>
+                                        <Button x:Name="NodeShutdownButton" Click="NodeShutdownButton_Click">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <FontIcon Glyph="&#xE7E8;" FontSize="14" FontFamily="Segoe Fluent Icons"
+                                                          Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                                <TextBlock Text="Shutdown Node"
+                                                           Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- DNS configuration card -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE968;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="DNS Configuration" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <TextBox x:Name="NodeDnsSearchTextBox" Header="Search Domain"
+                                             PlaceholderText="example.com" HorizontalAlignment="Stretch"/>
+                                    <Grid ColumnSpacing="12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="NodeDns1TextBox" Header="DNS Server 1"
+                                                 PlaceholderText="8.8.8.8" HorizontalAlignment="Stretch"/>
+                                        <TextBox x:Name="NodeDns2TextBox" Grid.Column="1" Header="DNS Server 2"
+                                                 PlaceholderText="8.8.4.4" HorizontalAlignment="Stretch"/>
+                                        <TextBox x:Name="NodeDns3TextBox" Grid.Column="2" Header="DNS Server 3"
+                                                 PlaceholderText="Optional" HorizontalAlignment="Stretch"/>
+                                    </Grid>
+                                    <Button Click="SaveNodeDnsButton_Click" Style="{ThemeResource AccentButtonStyle}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE74E;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                            <TextBlock Text="Save DNS"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Syslog card -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <Border Padding="16,12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0,0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <FontIcon Glyph="&#xE7C3;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                          Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                                <TextBlock Text="System Log" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Click="RefreshSyslogButton_Click">
+                                                <FontIcon Glyph="&#xE72C;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                    <ScrollViewer Grid.Row="1" MaxHeight="300" Padding="16,12" VerticalScrollBarVisibility="Auto">
+                                        <TextBlock x:Name="SyslogTextBlock"
+                                                   FontFamily="Cascadia Code, Consolas, Courier New"
+                                                   FontSize="11"
+                                                   TextWrapping="Wrap"
+                                                   IsTextSelectionEnabled="True"
+                                                   Opacity="0.8"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
                 </Grid>
 
             </Grid>

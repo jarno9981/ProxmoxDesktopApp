@@ -2468,6 +2468,523 @@ namespace ProxmoxApiHelper
             return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
         }
 
+        // ──────────────────────────────────────────────────────────────────
+        // Snapshot management — VM
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> RollbackVmSnapshotAsync(string node, string vmid, string snapname)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/snapshot/{snapname}/rollback",
+                    new StringContent("", Encoding.UTF8, "application/json")));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteVmSnapshotAsync(string node, string vmid, string snapname)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/nodes/{node}/qemu/{vmid}/snapshot/{snapname}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Snapshot management — LXC
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> RollbackLxcSnapshotAsync(string node, string vmid, string snapname)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/snapshot/{snapname}/rollback",
+                    new StringContent("", Encoding.UTF8, "application/json")));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteLxcSnapshotAsync(string node, string vmid, string snapname)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/nodes/{node}/lxc/{vmid}/snapshot/{snapname}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // VM suspend / resume
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> SuspendVmAsync(string node, string vmid)
+        {
+            using var content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>());
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/status/suspend", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> ResumeVmAsync(string node, string vmid)
+        {
+            using var content = new FormUrlEncodedContent(Array.Empty<KeyValuePair<string, string>>());
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/status/resume", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Cloning
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> CloneVmAsync(string node, string vmid, int newid, string name,
+            bool full = true, string storage = null, string targetNode = null)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("newid", newid.ToString()),
+                new("name", name),
+                new("full", full ? "1" : "0"),
+            };
+            if (!string.IsNullOrEmpty(storage)) pairs.Add(new("storage", storage));
+            if (!string.IsNullOrEmpty(targetNode)) pairs.Add(new("target", targetNode));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/clone", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> CloneLxcAsync(string node, string vmid, int newid, string hostname,
+            bool full = true, string storage = null, string targetNode = null)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("newid", newid.ToString()),
+                new("hostname", hostname),
+                new("full", full ? "1" : "0"),
+            };
+            if (!string.IsNullOrEmpty(storage)) pairs.Add(new("storage", storage));
+            if (!string.IsNullOrEmpty(targetNode)) pairs.Add(new("target", targetNode));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/clone", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Migration
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> MigrateVmAsync(string node, string vmid, string target,
+            bool online = true, bool withLocalDisks = false)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("target", target),
+                new("online", online ? "1" : "0"),
+                new("with-local-disks", withLocalDisks ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/migrate", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> MigrateLxcAsync(string node, string vmid, string target, bool online = true)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("target", target),
+                new("online", online ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/migrate", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Task management
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetNodeTasksAsync(string node, bool all = false)
+        {
+            var url = $"/api2/json/nodes/{node}/tasks?errors=0&limit=100";
+            if (all) url += "&source=all";
+            var response = await SendRequestWithRetryAsync(() => _httpClient.GetAsync(url));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<Dictionary<string, object>> GetTaskStatusAsync(string node, string upid)
+        {
+            var encodedUpid = Uri.EscapeDataString(upid);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/tasks/{encodedUpid}/status"));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetTaskLogAsync(string node, string upid, int limit = 500)
+        {
+            var encodedUpid = Uri.EscapeDataString(upid);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/tasks/{encodedUpid}/log?limit={limit}"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<bool> StopTaskAsync(string node, string upid)
+        {
+            var encodedUpid = Uri.EscapeDataString(upid);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/nodes/{node}/tasks/{encodedUpid}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Backup management
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<string> CreateBackupAsync(string node, string vmid, string storage,
+            string mode = "snapshot", string compress = "zstd")
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("storage", storage),
+                new("mode", mode),
+                new("compress", compress),
+                new("vmid", vmid),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/vzdump", content));
+            if (!response.IsSuccessStatusCode) return null;
+            var body = await response.Content.ReadAsStringAsync();
+            var json = JsonSerializer.Deserialize<JsonElement>(body);
+            return json.TryGetProperty("data", out var data) ? data.GetString() : null;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetBackupsAsync(string node, string storage = null)
+        {
+            var results = new List<Dictionary<string, object>>();
+            var nodes = string.IsNullOrEmpty(node)
+                ? (await GetNodesAsync()).Select(n => n.TryGetValue("node", out var nd) ? nd?.ToString() : null).Where(n => n != null).ToList()
+                : new List<string> { node };
+
+            foreach (var nd in nodes)
+            {
+                var storageList = storage != null
+                    ? new List<string> { storage }
+                    : (await GetStorageAsync(nd))
+                        .Select(s => s.TryGetValue("storage", out var sv) ? sv?.ToString() : null)
+                        .Where(s => s != null).ToList();
+
+                foreach (var stor in storageList)
+                {
+                    try
+                    {
+                        var response = await SendRequestWithRetryAsync(() =>
+                            _httpClient.GetAsync($"/api2/json/nodes/{nd}/storage/{stor}/content?content=backup"));
+                        if (!response.IsSuccessStatusCode) continue;
+                        var items = await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+                        if (items != null)
+                        {
+                            foreach (var item in items)
+                            {
+                                item["_node"] = nd;
+                                item["_storage"] = stor;
+                            }
+                            results.AddRange(items);
+                        }
+                    }
+                    catch { }
+                }
+            }
+            return results;
+        }
+
+        public async Task<bool> RestoreVmBackupAsync(string node, string storage, string volid,
+            int vmid, bool unique = true)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("vmid", vmid.ToString()),
+                new("storage", storage),
+                new("archive", volid),
+                new("unique", unique ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> RestoreLxcBackupAsync(string node, string storage, string volid,
+            int vmid, string hostname, bool unique = true)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("vmid", vmid.ToString()),
+                new("storage", storage),
+                new("ostemplate", volid),
+                new("hostname", hostname),
+                new("restore", "1"),
+                new("unique", unique ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteBackupAsync(string node, string storage, string volid)
+        {
+            var encodedVolid = Uri.EscapeDataString(volid);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/nodes/{node}/storage/{storage}/content/{encodedVolid}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Firewall rules per VM
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> AddFirewallRuleAsync(string node, string vmid,
+            string action, string type, string source = null, string dest = null,
+            string proto = null, string dport = null, string sport = null,
+            string comment = null, bool enable = true)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("action", action),
+                new("type", type),
+                new("enable", enable ? "1" : "0"),
+            };
+            if (!string.IsNullOrEmpty(source)) pairs.Add(new("source", source));
+            if (!string.IsNullOrEmpty(dest)) pairs.Add(new("dest", dest));
+            if (!string.IsNullOrEmpty(proto)) pairs.Add(new("proto", proto));
+            if (!string.IsNullOrEmpty(dport)) pairs.Add(new("dport", dport));
+            if (!string.IsNullOrEmpty(sport)) pairs.Add(new("sport", sport));
+            if (!string.IsNullOrEmpty(comment)) pairs.Add(new("comment", comment));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/firewall/rules", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteFirewallRuleAsync(string node, string vmid, int pos)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/nodes/{node}/qemu/{vmid}/firewall/rules/{pos}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> SetVmFirewallEnabledAsync(string node, string vmid, bool enabled)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("enable", enabled ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync($"/api2/json/nodes/{node}/qemu/{vmid}/firewall/options", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Node management
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> RebootNodeAsync(string node)
+        {
+            var pairs = new[] { new KeyValuePair<string, string>("command", "reboot") };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/status", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> ShutdownNodeAsync(string node)
+        {
+            var pairs = new[] { new KeyValuePair<string, string>("command", "shutdown") };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/status", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<Dictionary<string, object>> GetNodeDnsAsync(string node)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/dns"));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response);
+        }
+
+        public async Task<bool> UpdateNodeDnsAsync(string node, string search,
+            string dns1 = null, string dns2 = null, string dns3 = null)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("search", search),
+            };
+            if (!string.IsNullOrEmpty(dns1)) pairs.Add(new("dns1", dns1));
+            if (!string.IsNullOrEmpty(dns2)) pairs.Add(new("dns2", dns2));
+            if (!string.IsNullOrEmpty(dns3)) pairs.Add(new("dns3", dns3));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync($"/api2/json/nodes/{node}/dns", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetNodeSyslogAsync(string node, int limit = 200)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/syslog?limit={limit}"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<Dictionary<string, object>> GetNodeTimeAsync(string node)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/time"));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response);
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Roles & ACL
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetRolesAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/access/roles"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetAclAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/access/acl"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<bool> UpdateAclAsync(string path, string roleid,
+            string userId = null, string groupId = null,
+            bool propagate = true, bool delete = false)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("path", path),
+                new("roles", roleid),
+                new("propagate", propagate ? "1" : "0"),
+                new("delete", delete ? "1" : "0"),
+            };
+            if (!string.IsNullOrEmpty(userId)) pairs.Add(new("users", userId));
+            if (!string.IsNullOrEmpty(groupId)) pairs.Add(new("groups", groupId));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync("/api2/json/access/acl", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // LXC disk resize
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<bool> ResizeLxcDiskAsync(string node, string vmid, string disk, string size)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("disk", disk),
+                new("size", size),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync($"/api2/json/nodes/{node}/lxc/{vmid}/resize", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // HA (High Availability)
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetHaResourcesAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/cluster/ha/resources"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetHaGroupsAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/cluster/ha/groups"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<bool> AddHaResourceAsync(string sid, string group = null,
+            string state = "started", int maxRelocate = 1, int maxRestart = 1)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("sid", sid),
+                new("state", state),
+                new("max_relocate", maxRelocate.ToString()),
+                new("max_restart", maxRestart.ToString()),
+            };
+            if (!string.IsNullOrEmpty(group)) pairs.Add(new("group", group));
+
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync("/api2/json/cluster/ha/resources", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> RemoveHaResourceAsync(string sid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/cluster/ha/resources/{Uri.EscapeDataString(sid)}"));
+            return response.IsSuccessStatusCode;
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Cluster status & replication
+        // ──────────────────────────────────────────────────────────────────
+
+        public async Task<List<Dictionary<string, object>>> GetClusterStatusAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/cluster/status"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetReplicationJobsAsync()
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync("/api2/json/replication"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<bool> CreateReplicationJobAsync(string id, string target, string type = "local",
+            string schedule = "*/15", bool enabled = true)
+        {
+            var pairs = new List<KeyValuePair<string, string>>
+            {
+                new("id", id),
+                new("target", target),
+                new("type", type),
+                new("schedule", schedule),
+                new("enabled", enabled ? "1" : "0"),
+            };
+            using var content = new FormUrlEncodedContent(pairs);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync("/api2/json/replication", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteReplicationJobAsync(string id)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync($"/api2/json/replication/{Uri.EscapeDataString(id)}"));
+            return response.IsSuccessStatusCode;
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
