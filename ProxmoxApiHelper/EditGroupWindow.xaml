@@ -7,36 +7,93 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="EditGroupWindow">
+    Title="Edit Group">
 
-    <Grid Padding="20">
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
+    <Grid Margin="24">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Edit Group" FontSize="24" FontWeight="Bold" Margin="0,0,0,20"/>
-
-        <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,0,0,10">
-            <TextBlock Text="Group ID:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="GroupIdTextBox" IsReadOnly="True" Width="200"/>
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,20">
+            <Border Width="40" Height="40" CornerRadius="10"
+                    Background="{ThemeResource AccentButtonBackground}">
+                <FontIcon Glyph="&#xE902;" FontSize="20"
+                          FontFamily="Segoe Fluent Icons"
+                          Foreground="White"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Edit Group"
+                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                           FontWeight="SemiBold"/>
+                <TextBlock Text="Modify group properties and membership"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Opacity="0.6"/>
+            </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,0,0,10">
-            <TextBlock Text="Comment:" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="CommentTextBox" Width="200"/>
-        </StackPanel>
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
 
-        <ScrollViewer Grid.Row="3" Margin="0,10,0,0">
-            <StackPanel>
-                <TextBlock Text="Members:" FontWeight="Bold" Margin="0,0,0,10"/>
-                <StackPanel x:Name="MembersStackPanel"/>
+                <!-- Group Info Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Group Information"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        <TextBox x:Name="GroupIdTextBox"
+                                 Header="Group ID"
+                                 IsReadOnly="True"
+                                 HorizontalAlignment="Stretch"/>
+                        <TextBox x:Name="CommentTextBox"
+                                 Header="Comment"
+                                 PlaceholderText="Add a description"
+                                 HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Members Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE716;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Group Members"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto">
+                            <StackPanel x:Name="MembersStackPanel" Spacing="4"/>
+                        </ScrollViewer>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
 
-        <Button Grid.Row="4" Content="Save" Click="SaveButton_Click" HorizontalAlignment="Right" Margin="0,20,0,0"/>
+        <!-- Actions -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Spacing="8" Margin="0,16,0,0">
+            <Button Content="Cancel" Click="CancelButton_Click" Width="80"/>
+            <Button Content="Save Changes"
+                    Click="SaveButton_Click"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    MinWidth="110"/>
+        </StackPanel>
     </Grid>
 </Window>

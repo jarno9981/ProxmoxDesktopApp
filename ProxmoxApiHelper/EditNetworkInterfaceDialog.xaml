@@ -8,76 +8,214 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="Edit Interface">
+    Title="Edit Network Interface">
 
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
 
-    <Grid Margin="20">
+    <Grid>
         <Grid.Resources>
             <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         </Grid.Resources>
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Edit Interface" Style="{StaticResource HeaderTextBlockStyle}" Margin="0,0,0,20"/>
-
-        <ScrollViewer Grid.Row="1">
-            <StackPanel Spacing="16">
-                <!-- Basic Information -->
-                <TextBlock Text="Basic Configuration" Style="{StaticResource SubtitleTextBlockStyle}" />
-
-                <ComboBox x:Name="TypeComboBox" Header="Interface Type" PlaceholderText="Select type"
-                          SelectedItem="{Binding SelectedType, Mode=TwoWay}">
-                    <ComboBoxItem Content="Bridge" />
-                    <ComboBoxItem Content="Bond" />
-                    <ComboBoxItem Content="Eth" />
-                    <ComboBoxItem Content="VLAN" />
-                </ComboBox>
-
-                <ComboBox x:Name="MethodComboBox" Header="Configuration Method" PlaceholderText="Select method"
-                          SelectedItem="{Binding SelectedMethod, Mode=TwoWay}">
-                    <ComboBoxItem Content="Static" />
-                    <ComboBoxItem Content="DHCP" />
-                    <ComboBoxItem Content="Manual" />
-                </ComboBox>
-
-                <!-- IP Configuration -->
-                <TextBlock Text="IP Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
-
-                <TextBox Text="{Binding Address, Mode=TwoWay}" Header="IP Address" PlaceholderText="Enter IP address"/>
-                <TextBox Text="{Binding Netmask, Mode=TwoWay}" Header="Netmask" PlaceholderText="Enter netmask (e.g., 24)"/>
-                <TextBox Text="{Binding Gateway, Mode=TwoWay}" Header="Gateway" PlaceholderText="Enter gateway address"/>
-
-                <!-- Bridge Configuration -->
-                <StackPanel x:Name="BridgeConfigPanel" Visibility="{Binding IsBridgeVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <TextBlock Text="Bridge Configuration" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
-
-                    <TextBox Text="{Binding BridgePorts, Mode=TwoWay}" Header="Bridge Ports" PlaceholderText="Space-separated list of ports"/>
-                    <CheckBox IsChecked="{Binding IsBridgeVlanAware, Mode=TwoWay}" Content="VLAN Aware"/>
-                    <ComboBox SelectedItem="{Binding SelectedBridgeStp, Mode=TwoWay}" Header="STP Mode">
-                        <ComboBoxItem Content="On"/>
-                        <ComboBoxItem Content="Off"/>
-                    </ComboBox>
-                    <TextBox Text="{Binding BridgeFd, Mode=TwoWay}" Header="Forward Delay" PlaceholderText="Enter forward delay"/>
+        <!-- Header bar -->
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Width="36" Height="36" CornerRadius="8"
+                        Background="{ThemeResource AccentButtonBackground}">
+                    <FontIcon Glyph="&#xE839;" FontSize="18"
+                              FontFamily="Segoe Fluent Icons"
+                              Foreground="White"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Edit Network Interface"
+                               Style="{ThemeResource SubtitleTextBlockStyle}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Configure network adapter settings"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Opacity="0.6"/>
                 </StackPanel>
+            </StackPanel>
+        </Border>
 
-                <!-- Additional Settings -->
-                <TextBlock Text="Additional Settings" Style="{StaticResource SubtitleTextBlockStyle}" Margin="0,8,0,0"/>
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="20">
+            <StackPanel Spacing="12">
 
-                <CheckBox IsChecked="{Binding IsAutostart, Mode=TwoWay}" Content="Enable Autostart"/>
-                <TextBox Text="{Binding Comments, Mode=TwoWay}" Header="Comments" PlaceholderText="Enter comments" TextWrapping="Wrap" Height="80"/>
+                <!-- Basic Configuration Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE839;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Basic Configuration"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="TypeComboBox"
+                                      Header="Interface Type"
+                                      PlaceholderText="Select type"
+                                      SelectedItem="{Binding SelectedType, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Bridge"/>
+                                <ComboBoxItem Content="Bond"/>
+                                <ComboBoxItem Content="Eth"/>
+                                <ComboBoxItem Content="VLAN"/>
+                            </ComboBox>
+                            <ComboBox x:Name="MethodComboBox"
+                                      Grid.Column="1"
+                                      Header="Configuration Method"
+                                      PlaceholderText="Select method"
+                                      SelectedItem="{Binding SelectedMethod, Mode=TwoWay}"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="Static"/>
+                                <ComboBoxItem Content="DHCP"/>
+                                <ComboBoxItem Content="Manual"/>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- IP Configuration Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE968;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="IP Configuration"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Text="{Binding Address, Mode=TwoWay}"
+                                     Header="IP Address"
+                                     PlaceholderText="192.168.1.100"
+                                     HorizontalAlignment="Stretch"/>
+                            <TextBox Text="{Binding Netmask, Mode=TwoWay}"
+                                     Grid.Column="1"
+                                     Header="Subnet Mask / Prefix"
+                                     PlaceholderText="24 or 255.255.255.0"
+                                     HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <TextBox Text="{Binding Gateway, Mode=TwoWay}"
+                                 Header="Default Gateway"
+                                 PlaceholderText="192.168.1.1"
+                                 HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Bridge Configuration Card (conditional) -->
+                <Border x:Name="BridgeConfigPanel"
+                        Visibility="{Binding IsBridgeVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xF0B2;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Bridge Configuration"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <TextBox Text="{Binding BridgePorts, Mode=TwoWay}"
+                                 Header="Bridge Ports"
+                                 PlaceholderText="Space-separated port list (e.g. eth0 eth1)"
+                                 HorizontalAlignment="Stretch"/>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox SelectedItem="{Binding SelectedBridgeStp, Mode=TwoWay}"
+                                      Header="STP Mode"
+                                      HorizontalAlignment="Stretch">
+                                <ComboBoxItem Content="On"/>
+                                <ComboBoxItem Content="Off"/>
+                            </ComboBox>
+                            <TextBox Text="{Binding BridgeFd, Mode=TwoWay}"
+                                     Grid.Column="1"
+                                     Header="Forward Delay (ms)"
+                                     PlaceholderText="0"
+                                     HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <CheckBox IsChecked="{Binding IsBridgeVlanAware, Mode=TwoWay}"
+                                  Content="VLAN Aware bridge"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Additional Settings Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE713;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Additional Settings"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <CheckBox IsChecked="{Binding IsAutostart, Mode=TwoWay}"
+                                  Content="Enable Autostart on boot"/>
+                        <TextBox Text="{Binding Comments, Mode=TwoWay}"
+                                 Header="Comments"
+                                 PlaceholderText="Notes about this interface"
+                                 TextWrapping="Wrap"
+                                 MinHeight="80"
+                                 HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Border>
+
             </StackPanel>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,20,0,0">
-            <Button Content="Cancel" Command="{Binding CancelCommand}"/>
-            <Button Content="Save" Command="{Binding SaveCommand}" Style="{StaticResource AccentButtonStyle}"/>
-        </StackPanel>
+        <!-- Footer actions -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Cancel" Command="{Binding CancelCommand}" MinWidth="80"/>
+                <Button Content="Save Changes"
+                        Command="{Binding SaveCommand}"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        MinWidth="120"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
