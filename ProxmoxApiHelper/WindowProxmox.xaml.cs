@@ -443,7 +443,7 @@ namespace ProxmoxApiHelper
             ShutdownButtonProxmox.IsEnabled = isRunning;
             EditButtonProxmox.IsEnabled = _selectedVm.Type == "qemu";
             DeleteButtonProxmox.IsEnabled = true;
-            ConsoleViewerProxmox.IsEnabled = false;
+            ConsoleViewerProxmox.IsEnabled = true;
         }
 
         private void DisableVmActionButtons()
@@ -2477,6 +2477,7 @@ namespace ProxmoxApiHelper
             try
             {
                 VmDetailsVmComboBox.Items.Clear();
+                VmDetailsVmComboBox.DisplayMemberPath = "DisplayName";
                 var allVms = _vms.ToList();
                 foreach (var vm in allVms)
                     VmDetailsVmComboBox.Items.Add(new SnapshotVmEntry { DisplayName = $"{vm.Name} ({vm.Id}) [{vm.Node}]", Vm = vm });
