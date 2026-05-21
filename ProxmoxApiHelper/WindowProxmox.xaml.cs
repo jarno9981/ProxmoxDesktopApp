@@ -375,12 +375,20 @@ namespace ProxmoxApiHelper
             try
             {
                 LoadingIndicatorProxmox.IsActive = true;
-                var vms = await _proxmoxClient.GetAllVmsAsync();
                 _vms.Clear();
+
+                var vms = await _proxmoxClient.GetAllVmsAsync();
                 foreach (var vm in vms)
+                    _vms.Add(new ProxMachine(vm, "qemu"));
+
+                try
                 {
-                    _vms.Add(new ProxMachine(vm));
+                    var containers = await _proxmoxClient.GetAllLxcAsync();
+                    foreach (var ct in containers)
+                        _vms.Add(new ProxMachine(ct, "lxc"));
                 }
+                catch { }
+
                 VmListViewProxmox.ItemsSource = _vms;
             }
             catch (Exception ex)
@@ -414,24 +422,27 @@ namespace ProxmoxApiHelper
         {
             if (_selectedVm != null)
             {
-                VmDetailsTextBlockProxmox.Text = $"Name: {_selectedVm.Name}\nStatus: {_selectedVm.Status}\nNode: {_selectedVm.Node}\n" +
+                string typeLabel = _selectedVm.Type == "lxc" ? "LXC Container" : "VM";
+                VmDetailsTextBlockProxmox.Text = $"Type: {typeLabel}\nName: {_selectedVm.Name}\nID: {_selectedVm.Id}\nStatus: {_selectedVm.Status}\nNode: {_selectedVm.Node}\n" +
                     $"CPU: {_selectedVm.VCPUs} cores\nMemory: {_selectedVm.RAMInMB} MB\nUptime: {_selectedVm.FormattedUptime}";
                 EnableVmActionButtons();
             }
             else
             {
-                VmDetailsTextBlockProxmox.Text = "Select a VM to view details";
+                VmDetailsTextBlockProxmox.Text = "Select a VM or container to view details";
                 DisableVmActionButtons();
             }
         }
 
         private void EnableVmActionButtons()
         {
-            StartButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() != "running";
-            StopButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
-            ResetButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
-            ShutdownButtonProxmox.IsEnabled = _selectedVm.Status.ToLower() == "running";
-            EditButtonProxmox.IsEnabled = true;
+            bool isRunning = _selectedVm.Status.ToLower() == "running";
+            StartButtonProxmox.IsEnabled = !isRunning;
+            StopButtonProxmox.IsEnabled = isRunning;
+            ResetButtonProxmox.IsEnabled = isRunning && _selectedVm.Type == "qemu";
+            ShutdownButtonProxmox.IsEnabled = isRunning;
+            EditButtonProxmox.IsEnabled = _selectedVm.Type == "qemu";
+            DeleteButtonProxmox.IsEnabled = true;
             ConsoleViewerProxmox.IsEnabled = false;
         }
 
@@ -442,6 +453,7 @@ namespace ProxmoxApiHelper
             ResetButtonProxmox.IsEnabled = false;
             ShutdownButtonProxmox.IsEnabled = false;
             EditButtonProxmox.IsEnabled = false;
+            DeleteButtonProxmox.IsEnabled = false;
             ConsoleViewerProxmox.IsEnabled = false;
         }
 
@@ -473,38 +485,45 @@ namespace ProxmoxApiHelper
             {
                 try
                 {
-                    StatusInfoBarProxmox.Message = $"{actionName} VM...";
+                    StatusInfoBarProxmox.Message = $"{actionName}...";
                     StatusInfoBarProxmox.IsOpen = true;
                     bool success = false;
+                    bool isLxc = _selectedVm.Type == "lxc";
+
                     switch (action)
                     {
                         case "start":
-                            success = await _proxmoxClient.StartVmAsync(_selectedVm.Node, _selectedVm.Id);
+                            success = isLxc
+                                ? await _proxmoxClient.StartLxcAsync(_selectedVm.Node, _selectedVm.Id)
+                                : await _proxmoxClient.StartVmAsync(_selectedVm.Node, _selectedVm.Id);
                             break;
                         case "stop":
-                            success = await _proxmoxClient.StopVmAsync(_selectedVm.Node, _selectedVm.Id);
+                            success = isLxc
+                                ? await _proxmoxClient.StopLxcAsync(_selectedVm.Node, _selectedVm.Id)
+                                : await _proxmoxClient.StopVmAsync(_selectedVm.Node, _selectedVm.Id);
                             break;
                         case "reset":
                             success = await _proxmoxClient.ResetVmAsync(_selectedVm.Node, _selectedVm.Id);
                             break;
                         case "shutdown":
-                            success = await _proxmoxClient.ShutdownVmAsync(_selectedVm.Node, _selectedVm.Id);
+                            success = isLxc
+                                ? await _proxmoxClient.ShutdownLxcAsync(_selectedVm.Node, _selectedVm.Id)
+                                : await _proxmoxClient.ShutdownVmAsync(_selectedVm.Node, _selectedVm.Id);
                             break;
                     }
                     if (success)
                     {
-                        await RefreshVMList();
-                        StatusInfoBarProxmox.Message = $"VM {actionName.ToLower()} successful.";
+                        StatusInfoBarProxmox.Message = $"{actionName} successful.";
                         StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
                     }
                     else
                     {
-                        throw new Exception($"Failed to {action} VM");
+                        throw new Exception($"Failed to {action}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    StatusInfoBarProxmox.Message = $"Failed to {action} VM: {ex.Message}";
+                    StatusInfoBarProxmox.Message = $"Failed to {action}: {ex.Message}";
                     StatusInfoBarProxmox.Severity = InfoBarSeverity.Error;
                 }
                 finally
@@ -562,13 +581,13 @@ namespace ProxmoxApiHelper
         {
             DashboardContentProxmox.Visibility = Visibility.Collapsed;
             CreateVmPanelProxmox.Visibility = Visibility.Collapsed;
+            CreateLxcPanelProxmox.Visibility = Visibility.Collapsed;
             NetworkConfigPanelProxmox.Visibility = Visibility.Collapsed;
             ServerStatsPanelProxmox.Visibility = Visibility.Collapsed;
             UsersGroups.Visibility = Visibility.Collapsed;
             ManagePoolsPanel.Visibility = Visibility.Collapsed;
 
             StopServerStatsTimer();
-         
 
             switch (navItemTag)
             {
@@ -578,6 +597,10 @@ namespace ProxmoxApiHelper
                 case "create_vm":
                     CreateVmPanelProxmox.Visibility = Visibility.Visible;
                     break;
+                case "create_lxc":
+                    CreateLxcPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadLxcNodeData();
+                    break;
                 case "network_config":
                     NetworkConfigPanelProxmox.Visibility = Visibility.Visible;
                     break;
@@ -586,7 +609,7 @@ namespace ProxmoxApiHelper
                     break;
                 case "server_stats":
                     ServerStatsPanelProxmox.Visibility = Visibility.Visible;
-                    LoadServerStats(); // Initial load
+                    LoadServerStats();
                     StartServerStatsTimer();
                     break;
                 case "manage_pools":
@@ -609,21 +632,21 @@ namespace ProxmoxApiHelper
                     NewVmMemoryTextBoxProxmox.Value == 0 ||
                     NodeSelectionComboBoxProxmox.SelectedItem == null ||
                     StorageSelectionComboBoxProxmox.SelectedItem == null ||
-                    NetworkModelComboBoxProxmox.SelectedItem == null ||
-                    string.IsNullOrWhiteSpace(BridgeTextBoxProxmox.Text))
+                    CreateVmNetworkModelComboBoxProxmox.SelectedItem == null ||
+                    string.IsNullOrWhiteSpace(CreateVmBridgeTextBoxProxmox.Text))
                 {
-                    throw new ArgumentException("Please fill in all required fields.");
+                    throw new ArgumentException("Please fill in all required fields including Network Model and Bridge.");
                 }
 
                 // Get the actual values from ComboBox items
                 var osTypeValue = (OsType.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower();
-                var networkModelValue = (NetworkModelComboBoxProxmox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower();
+                var networkModelValue = (CreateVmNetworkModelComboBoxProxmox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower();
                 var bootDiskValue = (DriveTypeComboBoxProxmox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower();
 
                 // Convert checkbox values to boolean parameters
                 var onbootValue = OnBootCheckBoxProxmox.IsChecked ?? false;
                 var agentValue = AgentCheckBoxProxmox.IsChecked == true ? "1" : "0";
-                var firewall = FirewallCheckBoxProxmox.IsChecked == true ? "1" : "0";
+                var firewall = CreateVmFirewallCheckBoxProxmox.IsChecked == true ? "1" : "0";
 
                 var autostartValue = AutoStartCheckBoxProxmox.IsChecked ?? false;
 
@@ -636,7 +659,9 @@ namespace ProxmoxApiHelper
                     iso: IsoSelectionComboBoxProxmox.SelectedItem != null ? $"{IsoSelectionComboBoxProxmox.SelectedItem}" : null,
                     ostype: osTypeValue ?? "l26", // Default to Linux 2.6+ kernel if not selected
                     bios: UefiCheckBoxProxmox.IsChecked == true ? "ovmf" : "seabios",
-                    net0: $"model={networkModelValue},bridge={BridgeTextBoxProxmox.Text},firewall={firewall}",
+                    net0: $"model={networkModelValue},bridge={CreateVmBridgeTextBoxProxmox.Text}" +
+                          (!string.IsNullOrWhiteSpace(CreateVmVlanTagTextBoxProxmox.Text) ? $",tag={CreateVmVlanTagTextBoxProxmox.Text}" : "") +
+                          $",firewall={firewall}",
                     cores: (int)NewVmCpuTextBoxProxmox.Value,
                     memory: ((int)NewVmMemoryTextBoxProxmox.Value).ToString(),
                     balloon: ((int)NewVmMemoryTextBoxProxmox.Value).ToString(),
@@ -879,33 +904,39 @@ namespace ProxmoxApiHelper
 
         private void EditGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (GroupsListView.SelectedItem is GroupItem selectedGroup)
+            string groupId = GroupsListView.SelectedItem as string ?? ViewModel.SelectedGroup;
+            if (!string.IsNullOrEmpty(groupId))
             {
-                var editGroupWindow = new EditGroupWindow(_proxmoxClient, selectedGroup.GroupId);
+                var editGroupWindow = new EditGroupWindow(_proxmoxClient, groupId);
                 editGroupWindow.Activate();
+            }
+            else
+            {
+                ShowErrorDialog("Edit Group Error", "Please select a group to edit.");
             }
         }
 
         private async void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (ViewModel.SelectedGroup != null)
+            string groupId = GroupsListView.SelectedItem as string ?? ViewModel.SelectedGroup;
+            if (!string.IsNullOrEmpty(groupId))
             {
                 ContentDialog dialog = new ContentDialog
                 {
                     Title = "Confirm Delete",
-                    Content = $"Are you sure you want to delete group {ViewModel.SelectedGroup}?",
+                    Content = $"Are you sure you want to delete group '{groupId}'?",
                     PrimaryButtonText = "Delete",
                     CloseButtonText = "Cancel",
                     XamlRoot = this.Content.XamlRoot
                 };
 
                 var result = await dialog.ShowAsync();
-
                 if (result == ContentDialogResult.Primary)
                 {
                     try
                     {
-                        await _proxmoxClient.DeleteGroupAsync(ViewModel.SelectedGroup);
+                        await _proxmoxClient.DeleteGroupAsync(groupId);
+                        ViewModel.SelectedGroup = null;
                         await LoadUsersAndGroups();
                     }
                     catch (Exception ex)
@@ -913,6 +944,10 @@ namespace ProxmoxApiHelper
                         await ShowErrorDialog("Delete Group Error", $"Failed to delete group: {ex.Message}");
                     }
                 }
+            }
+            else
+            {
+                await ShowErrorDialog("Delete Group Error", "Please select a group to delete.");
             }
         }
 
@@ -1000,15 +1035,6 @@ namespace ProxmoxApiHelper
         }
 
         private static readonly object _lock = new object();
-
-        private string GetNextVMID()
-        {
-            // Use lock to ensure thread-safe random number generation
-            lock (_lock)
-            {
-                return _random.Next(250, 1000).ToString("D3");
-            }
-        }
         private async void MassVmCreationDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
         {
             MassVmCreationProgressBar.Visibility = Visibility.Visible;
@@ -1038,13 +1064,14 @@ namespace ProxmoxApiHelper
                 {
                     try
                     {
-                        string vmId = GetNextVMID();
+                        int vmIdInt = await _proxmoxClient.GetNextVmIdAsync();
+                        string vmId = vmIdInt.ToString();
                         string vmName = $"VM-{GenerateRandomLetters(5)}";
 
                         var result = await _proxmoxClient.CreateVMAsync(
                             // Required parameters
                             node: MassVmNodeSelectionComboBox.SelectedItem.ToString(),
-                            vmid: int.Parse(vmId),
+                            vmid: vmIdInt,
                             storage: MassVmStorageSelectionComboBox.SelectedItem.ToString(),
                             disktype: (MassVmDiskTypeComboBox.SelectedItem as ComboBoxItem)?.Content.ToString().ToLower() ?? "scsi0",
                             diskSize: (int)MassVmDiskSizeGBNumberBox.Value,
@@ -1310,14 +1337,9 @@ namespace ProxmoxApiHelper
 
         private void GroupsListView_ItemClick(object sender, ItemClickEventArgs e)
         {
-            if (e.ClickedItem is GroupItem clickedGroup)
+            if (e.ClickedItem is string groupId)
             {
-                // Toggle the IsSelected property
-                clickedGroup.IsSelected = !clickedGroup.IsSelected;
-                clickedGroup.GroupId = clickedGroup.GroupId;
-                // You can add additional logic here if needed
-                // For example, you might want to update some UI elements or perform some action
-                // based on the group selection change
+                ViewModel.SelectedGroup = groupId;
             }
         }
 
@@ -1361,6 +1383,305 @@ namespace ProxmoxApiHelper
             SettingsManager.CurrentSettings.RefreshInterval = (int)RefreshIntervalNumberBox.Value;
             SettingsManager.SaveSettingsAsync();
         }
+
+        private async void DeleteButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedVm == null) return;
+
+            string label = _selectedVm.Type == "lxc" ? "container" : "VM";
+            ContentDialog dialog = new ContentDialog
+            {
+                Title = $"Confirm Delete",
+                Content = $"Are you sure you want to delete {label} '{_selectedVm.Name}' (ID: {_selectedVm.Id})?\n\nThis action cannot be undone. All associated disks will be removed.",
+                PrimaryButtonText = "Delete",
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary) return;
+
+            try
+            {
+                StatusInfoBarProxmox.Message = $"Deleting {label}...";
+                StatusInfoBarProxmox.IsOpen = true;
+
+                bool success;
+                if (_selectedVm.Type == "lxc")
+                    success = await _proxmoxClient.DeleteLxcAsync(_selectedVm.Node, _selectedVm.Id, purge: true);
+                else
+                    success = await _proxmoxClient.DeleteVMAsync(_selectedVm.Node, _selectedVm.Id, purge: true);
+
+                if (success)
+                {
+                    StatusInfoBarProxmox.Message = $"{char.ToUpper(label[0]) + label[1..]} deleted successfully.";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    _selectedVm = null;
+                    await RefreshVMList();
+                }
+                else
+                {
+                    throw new Exception($"Server returned failure for delete operation.");
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusInfoBarProxmox.Message = $"Failed to delete: {ex.Message}";
+                StatusInfoBarProxmox.Severity = InfoBarSeverity.Error;
+                StatusInfoBarProxmox.IsOpen = true;
+            }
+        }
+
+        private async Task LoadLxcNodeData()
+        {
+            try
+            {
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                var nodeNames = nodes.Select(n => n["node"].ToString()).ToList();
+                LxcNodeSelectionComboBoxProxmox.ItemsSource = nodeNames;
+                MassLxcNodeSelectionComboBox.ItemsSource = nodeNames;
+
+                var pools = await _proxmoxClient.GetResourcePoolsAsync();
+                if (pools?.Count > 0)
+                {
+                    LxcPoolSelectionComboBoxProxmox.ItemsSource = pools.Select(p => p.PoolId);
+                    MassLxcPoolSelectionComboBox.ItemsSource = pools.Select(p => p.PoolId);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("LXC Init Error", $"Failed to load node data: {ex.Message}");
+            }
+        }
+
+        private async void LxcNodeSelectionComboBoxProxmox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LxcNodeSelectionComboBoxProxmox.SelectedItem is string selectedNode)
+            {
+                await UpdateLxcStorageAndTemplates(selectedNode,
+                    LxcStorageSelectionComboBoxProxmox,
+                    LxcTemplateSelectionComboBoxProxmox);
+            }
+        }
+
+        private async void MassLxcNodeSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (MassLxcNodeSelectionComboBox.SelectedItem is string selectedNode)
+            {
+                await UpdateLxcStorageAndTemplates(selectedNode,
+                    MassLxcStorageSelectionComboBox,
+                    MassLxcTemplateSelectionComboBox);
+            }
+        }
+
+        private async Task UpdateLxcStorageAndTemplates(string node, ComboBox storageBox, ComboBox templateBox)
+        {
+            try
+            {
+                var storages = await _proxmoxClient.GetStorageAsync(node);
+                storageBox.ItemsSource = storages.Select(s => s["storage"].ToString());
+
+                var templates = await _proxmoxClient.GetAllTemplateVolidsAsync(node);
+                templateBox.ItemsSource = templates;
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("LXC Data Error", $"Failed to load storage/templates: {ex.Message}");
+            }
+        }
+
+        private void LxcIpConfigComboBoxProxmox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            bool isStatic = LxcIpConfigComboBoxProxmox.SelectedIndex == 1;
+            LxcStaticIpTextBoxProxmox.IsEnabled = isStatic;
+            LxcGatewayTextBoxProxmox.IsEnabled = isStatic;
+        }
+
+        private async void CreateLxcButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            CreateLxcButtonProxmox.IsEnabled = false;
+            CreateLxcProgressRing.IsActive = true;
+
+            try
+            {
+                if (string.IsNullOrWhiteSpace(NewLxcHostnameTextBoxProxmox.Text) ||
+                    LxcNodeSelectionComboBoxProxmox.SelectedItem == null ||
+                    LxcTemplateSelectionComboBoxProxmox.SelectedItem == null ||
+                    LxcStorageSelectionComboBoxProxmox.SelectedItem == null)
+                {
+                    throw new ArgumentException("Please fill in all required fields (Hostname, Node, Template, Storage).");
+                }
+
+                int vmid = await _proxmoxClient.GetNextVmIdAsync();
+                NewLxcIdTextBoxProxmox.Text = vmid.ToString();
+
+                string bridge = LxcBridgeTextBoxProxmox.Text;
+                string net0;
+                if (LxcIpConfigComboBoxProxmox.SelectedIndex == 1 && !string.IsNullOrWhiteSpace(LxcStaticIpTextBoxProxmox.Text))
+                {
+                    net0 = $"name=eth0,bridge={bridge},ip={LxcStaticIpTextBoxProxmox.Text}" +
+                           (!string.IsNullOrWhiteSpace(LxcGatewayTextBoxProxmox.Text) ? $",gw={LxcGatewayTextBoxProxmox.Text}" : "") +
+                           (!string.IsNullOrWhiteSpace(LxcVlanTagTextBoxProxmox.Text) ? $",tag={LxcVlanTagTextBoxProxmox.Text}" : "");
+                }
+                else
+                {
+                    net0 = $"name=eth0,bridge={bridge},ip=dhcp" +
+                           (!string.IsNullOrWhiteSpace(LxcVlanTagTextBoxProxmox.Text) ? $",tag={LxcVlanTagTextBoxProxmox.Text}" : "");
+                }
+
+                var result = await _proxmoxClient.CreateLxcAsync(
+                    node: LxcNodeSelectionComboBoxProxmox.SelectedItem.ToString(),
+                    vmid: vmid,
+                    ostemplate: LxcTemplateSelectionComboBoxProxmox.SelectedItem.ToString(),
+                    storage: LxcStorageSelectionComboBoxProxmox.SelectedItem.ToString(),
+                    diskSize: (int)NewLxcDiskNumberBoxProxmox.Value,
+                    hostname: NewLxcHostnameTextBoxProxmox.Text,
+                    password: string.IsNullOrWhiteSpace(LxcPasswordBoxProxmox.Password) ? null : LxcPasswordBoxProxmox.Password,
+                    cores: (int)NewLxcCpuNumberBoxProxmox.Value,
+                    memory: (int)NewLxcMemoryNumberBoxProxmox.Value,
+                    swap: (int)NewLxcSwapNumberBoxProxmox.Value,
+                    onboot: LxcOnBootCheckBoxProxmox.IsChecked ?? false,
+                    start: LxcAutoStartCheckBoxProxmox.IsChecked ?? false,
+                    unprivileged: LxcUnprivilegedCheckBoxProxmox.IsChecked ?? true,
+                    net0: net0,
+                    description: string.IsNullOrWhiteSpace(LxcDescriptionTextBoxProxmox.Text) ? null : LxcDescriptionTextBoxProxmox.Text,
+                    tags: string.IsNullOrWhiteSpace(LxcTagsTextBoxProxmox.Text) ? null : LxcTagsTextBoxProxmox.Text,
+                    pool: LxcPoolSelectionComboBoxProxmox.SelectedItem?.ToString(),
+                    protection: LxcProtectionCheckBoxProxmox.IsChecked ?? false
+                );
+
+                if (result.Success)
+                {
+                    StatusInfoBarProxmox.Message = $"LXC container '{NewLxcHostnameTextBoxProxmox.Text}' created successfully (ID: {vmid}).";
+                    StatusInfoBarProxmox.Severity = InfoBarSeverity.Success;
+                    StatusInfoBarProxmox.IsOpen = true;
+                    await RefreshVMList();
+                }
+                else
+                {
+                    throw new Exception(result.ErrorMessage);
+                }
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Create LXC Error", ex.Message);
+            }
+            finally
+            {
+                CreateLxcButtonProxmox.IsEnabled = true;
+                CreateLxcProgressRing.IsActive = false;
+            }
+        }
+
+        private async void MassCreateLxcButtonProxmox_Click(object sender, RoutedEventArgs e)
+        {
+            MassLxcCreationDialog.XamlRoot = this.Content.XamlRoot;
+            await MassLxcCreationDialog.ShowAsync();
+        }
+
+        private async void MassLxcCreationDialog_PrimaryButtonClick(ContentDialog sender, ContentDialogButtonClickEventArgs args)
+        {
+            MassLxcCreationProgressBar.Visibility = Visibility.Visible;
+            int count = (int)MassLxcCountNumberBox.Value;
+            MassLxcCreationProgressBar.Maximum = count;
+            MassLxcCreationProgressBar.Value = 0;
+
+            try
+            {
+                if (MassLxcNodeSelectionComboBox.SelectedItem == null ||
+                    MassLxcTemplateSelectionComboBox.SelectedItem == null ||
+                    MassLxcStorageSelectionComboBox.SelectedItem == null ||
+                    string.IsNullOrWhiteSpace(MassLxcBridgeTextBox.Text))
+                {
+                    throw new ArgumentException("Please fill in all required fields (Node, Template, Storage, Bridge).");
+                }
+
+                var createdContainers = new List<string>();
+                var failedContainers = new List<(string Name, string Error)>();
+
+                string bridge = MassLxcBridgeTextBox.Text;
+                string net0 = $"name=eth0,bridge={bridge},ip=dhcp";
+                string namePrefix = string.IsNullOrWhiteSpace(MassLxcNamePrefixTextBox.Text) ? "ct" : MassLxcNamePrefixTextBox.Text;
+
+                for (int i = 0; i < count; i++)
+                {
+                    try
+                    {
+                        int vmid = await _proxmoxClient.GetNextVmIdAsync();
+                        string hostname = $"{namePrefix}-{i + 1}";
+
+                        var result = await _proxmoxClient.CreateLxcAsync(
+                            node: MassLxcNodeSelectionComboBox.SelectedItem.ToString(),
+                            vmid: vmid,
+                            ostemplate: MassLxcTemplateSelectionComboBox.SelectedItem.ToString(),
+                            storage: MassLxcStorageSelectionComboBox.SelectedItem.ToString(),
+                            diskSize: (int)MassLxcDiskSizeGBNumberBox.Value,
+                            hostname: hostname,
+                            password: string.IsNullOrWhiteSpace(MassLxcPasswordBox.Password) ? null : MassLxcPasswordBox.Password,
+                            cores: (int)MassLxcCpuCoresNumberBox.Value,
+                            memory: (int)MassLxcMemoryMBNumberBox.Value,
+                            swap: (int)MassLxcSwapMBNumberBox.Value,
+                            onboot: MassLxcOnBootCheckBox.IsChecked ?? true,
+                            start: MassLxcAutoStartCheckBox.IsChecked ?? false,
+                            unprivileged: MassLxcUnprivilegedCheckBox.IsChecked ?? true,
+                            net0: net0,
+                            pool: MassLxcPoolSelectionComboBox.SelectedItem?.ToString(),
+                            tags: string.IsNullOrWhiteSpace(MassLxcTagsTextBox.Text) ? null : MassLxcTagsTextBox.Text,
+                            protection: MassLxcProtectionCheckBox.IsChecked ?? false
+                        );
+
+                        if (result.Success)
+                            createdContainers.Add($"{hostname} (ID: {vmid})");
+                        else
+                            failedContainers.Add((hostname, result.ErrorMessage ?? "Unknown error"));
+
+                        MassLxcCreationProgressBar.Value++;
+                        await Task.Delay(1500);
+                    }
+                    catch (Exception ex)
+                    {
+                        failedContainers.Add(($"{namePrefix}-{i + 1}", ex.Message));
+                        MassLxcCreationProgressBar.Value++;
+                    }
+                }
+
+                await RefreshVMList();
+                MassLxcCreationProgressBar.Visibility = Visibility.Collapsed;
+
+                var summary = new System.Text.StringBuilder();
+                summary.AppendLine($"Successfully created: {createdContainers.Count}");
+                summary.AppendLine($"Failed: {failedContainers.Count}");
+                if (createdContainers.Any())
+                {
+                    summary.AppendLine("\nCreated Containers:");
+                    foreach (var ct in createdContainers) summary.AppendLine($"  - {ct}");
+                }
+                if (failedContainers.Any())
+                {
+                    summary.AppendLine("\nFailed:");
+                    foreach (var (name, error) in failedContainers) summary.AppendLine($"  - {name}: {error}");
+                }
+
+                ContentDialog summaryDialog = new ContentDialog
+                {
+                    Title = "Mass LXC Creation Summary",
+                    Content = new ScrollViewer
+                    {
+                        Content = new TextBlock { Text = summary.ToString(), TextWrapping = TextWrapping.Wrap },
+                        MaxHeight = 400,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                    },
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await summaryDialog.ShowAsync();
+            }
+            catch (Exception ex)
+            {
+                await ShowErrorDialog("Mass LXC Creation Error", ex.Message);
+                MassLxcCreationProgressBar.Visibility = Visibility.Collapsed;
+            }
+        }
     }
 
 
@@ -1374,31 +1695,39 @@ namespace ProxmoxApiHelper
         public int VCPUs { get; set; }
         public long RAMInBytes { get; set; }
         public TimeSpan Uptime { get; set; }
+        public string Type { get; set; } = "qemu";
 
-        public ProxMachine(Dictionary<string, object> vmData)
+        public ProxMachine(Dictionary<string, object> vmData, string type = "qemu")
         {
+            Type = type;
             Id = vmData["vmid"].ToString();
-            Name = vmData["name"].ToString();
             Status = vmData["status"].ToString();
-            Node = vmData["node"].ToString();
+            Node = vmData.TryGetValue("node", out var nodeVal) ? nodeVal.ToString() : "";
 
-            if (vmData.TryGetValue("cpus", out object cpusObj) && cpusObj is int cpus)
+            if (type == "lxc")
+                Name = vmData.TryGetValue("name", out var lxcName) ? lxcName.ToString() : $"CT-{Id}";
+            else
+                Name = vmData.TryGetValue("name", out var vmName) ? vmName.ToString() : $"VM-{Id}";
+
+            if (vmData.TryGetValue("cpus", out object cpusObj))
             {
-                VCPUs = cpus;
+                if (cpusObj is int cpus) VCPUs = cpus;
+                else if (int.TryParse(cpusObj?.ToString(), out int parsedCpus)) VCPUs = parsedCpus;
             }
 
-            if (vmData.TryGetValue("maxmem", out object maxmemObj) && maxmemObj is long maxmem)
+            if (vmData.TryGetValue("maxmem", out object maxmemObj))
             {
-                RAMInBytes = maxmem;
+                if (maxmemObj is long maxmem) RAMInBytes = maxmem;
+                else if (long.TryParse(maxmemObj?.ToString(), out long parsedMem)) RAMInBytes = parsedMem;
             }
 
-            if (vmData.TryGetValue("uptime", out object uptimeObj) && uptimeObj is long uptimeSeconds)
+            if (vmData.TryGetValue("uptime", out object uptimeObj))
             {
-                Uptime = TimeSpan.FromSeconds(uptimeSeconds);
+                if (uptimeObj is long uptimeSeconds) Uptime = TimeSpan.FromSeconds(uptimeSeconds);
+                else if (long.TryParse(uptimeObj?.ToString(), out long parsedUptime)) Uptime = TimeSpan.FromSeconds(parsedUptime);
             }
         }
 
-      
         public long RAMInMB => RAMInBytes / (1024 * 1024);
 
         public string FormattedUptime

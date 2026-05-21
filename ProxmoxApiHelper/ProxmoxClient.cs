@@ -143,11 +143,7 @@ namespace ProxmoxApiHelper
 
         private async Task<int> GetNextVMID()
         {
-            // Implement logic to get the next available VMID
-            // This could involve querying the Proxmox API for existing VMIDs and finding the next available one
-            // For now, we'll use a placeholder implementation
-            Random rnd = new Random();
-            return rnd.Next(125, 9999);
+            return await GetNextVmIdAsync();
         }
         public async Task<List<Result>> CreateMultipleVMsAsync(
        string node,
@@ -244,10 +240,8 @@ namespace ProxmoxApiHelper
        string net0 = null,
        string ipconfig0 = null)
         {
-            if (vmCount < 1 || vmCount > 5)
-            {
-                throw new ArgumentException("VM count must be between 1 and 5.");
-            }
+            if (vmCount < 1)
+                throw new ArgumentException("VM count must be at least 1.");
 
             List<Result> results = new List<Result>();
             List<Task<Result>> tasks = new List<Task<Result>>();
@@ -2183,6 +2177,295 @@ namespace ProxmoxApiHelper
                 default:
                     return element.ToString();
             }
+        }
+
+        public async Task<bool> DeleteVMAsync(string node, string vmid, bool purge = false)
+        {
+            string url = $"/api2/json/nodes/{node}/qemu/{vmid}";
+            if (purge) url += "?purge=1&destroy-unreferenced-disks=1";
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync(url));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetLxcForNodeAsync(string nodeName)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{nodeName}/lxc"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetAllLxcAsync()
+        {
+            var nodes = await GetNodesAsync();
+            var allLxc = new List<Dictionary<string, object>>();
+            foreach (var node in nodes)
+            {
+                var nodeName = node["node"].ToString();
+                try
+                {
+                    var containers = await GetLxcForNodeAsync(nodeName);
+                    foreach (var ct in containers)
+                        ct["node"] = nodeName;
+                    allLxc.AddRange(containers);
+                }
+                catch { }
+            }
+            return allLxc;
+        }
+
+        public async Task<bool> StartLxcAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/start", null));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> StopLxcAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/stop", null));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> ShutdownLxcAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/shutdown", null));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> RebootLxcAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/reboot", null));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> DeleteLxcAsync(string node, string vmid, bool purge = false)
+        {
+            string url = $"/api2/json/nodes/{node}/lxc/{vmid}";
+            if (purge) url += "?purge=1&destroy-unreferenced-disks=1";
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.DeleteAsync(url));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<Dictionary<string, object>> GetLxcConfigAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/config"));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response);
+        }
+
+        public async Task<Dictionary<string, object>> GetLxcStatusAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/status/current"));
+            return await DeserializeResponseAsync<Dictionary<string, object>>(response);
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetContainerTemplatesAsync(string node, string storage)
+        {
+            try
+            {
+                var content = await GetStorageContentAsync(node, storage);
+                return content
+                    .Where(c => c.ContainsKey("content") && c["content"]?.ToString()?.Contains("vztmpl") == true)
+                    .ToList();
+            }
+            catch
+            {
+                return new List<Dictionary<string, object>>();
+            }
+        }
+
+        public async Task<List<string>> GetAllTemplateVolidsAsync(string node)
+        {
+            var templateVolids = new List<string>();
+            try
+            {
+                var storages = await GetStorageAsync(node);
+                foreach (var storage in storages)
+                {
+                    if (!storage.TryGetValue("storage", out var storageName)) continue;
+                    try
+                    {
+                        var templates = await GetContainerTemplatesAsync(node, storageName.ToString());
+                        templateVolids.AddRange(templates
+                            .Where(t => t.ContainsKey("volid"))
+                            .Select(t => t["volid"].ToString()));
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return templateVolids;
+        }
+
+        public async Task<Result> CreateLxcAsync(
+            string node,
+            int vmid,
+            string ostemplate,
+            string storage,
+            int diskSize = 8,
+            string hostname = null,
+            string password = null,
+            int? cores = null,
+            int? memory = null,
+            int? swap = null,
+            bool? onboot = null,
+            bool? start = null,
+            bool? unprivileged = null,
+            string net0 = null,
+            string nameserver = null,
+            string searchdomain = null,
+            string description = null,
+            string tags = null,
+            string pool = null,
+            bool? protection = null,
+            string features = null,
+            string arch = null)
+        {
+            var parameters = new Dictionary<string, object>
+            {
+                ["vmid"] = vmid,
+                ["ostemplate"] = ostemplate,
+                ["rootfs"] = $"{storage}:{diskSize}",
+                ["hostname"] = hostname ?? $"ct-{vmid}",
+            };
+
+            if (cores.HasValue) parameters["cores"] = cores.Value;
+            if (memory.HasValue) parameters["memory"] = memory.Value;
+            if (swap.HasValue) parameters["swap"] = swap.Value;
+            if (onboot.HasValue) parameters["onboot"] = onboot.Value ? 1 : 0;
+            if (start.HasValue) parameters["start"] = start.Value ? 1 : 0;
+            if (unprivileged.HasValue) parameters["unprivileged"] = unprivileged.Value ? 1 : 0;
+            if (!string.IsNullOrEmpty(net0)) parameters["net0"] = net0;
+            if (!string.IsNullOrEmpty(nameserver)) parameters["nameserver"] = nameserver;
+            if (!string.IsNullOrEmpty(searchdomain)) parameters["searchdomain"] = searchdomain;
+            if (!string.IsNullOrEmpty(description)) parameters["description"] = description;
+            if (!string.IsNullOrEmpty(tags)) parameters["tags"] = tags;
+            if (!string.IsNullOrEmpty(pool)) parameters["pool"] = pool;
+            if (protection.HasValue) parameters["protection"] = protection.Value ? 1 : 0;
+            if (!string.IsNullOrEmpty(password)) parameters["password"] = password;
+            if (!string.IsNullOrEmpty(features)) parameters["features"] = features;
+            if (!string.IsNullOrEmpty(arch)) parameters["arch"] = arch;
+
+            parameters = parameters.Where(kvp => kvp.Value != null).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+            var jsonContent = JsonSerializer.Serialize(parameters);
+            var content = new StringContent(jsonContent, Encoding.UTF8, "application/json");
+
+            try
+            {
+                var response = await SendRequestWithRetryAsync(() =>
+                    _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc", content));
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonResponse = JsonSerializer.Deserialize<JsonElement>(responseContent);
+                    return new Result { Success = true, Data = jsonResponse };
+                }
+                else
+                {
+                    return new Result { Success = false, ErrorMessage = $"Failed to create LXC. Status: {response.StatusCode}, Response: {responseContent}" };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new Result { Success = false, ErrorMessage = $"Exception creating LXC: {ex.Message}" };
+            }
+        }
+
+        public async Task<List<Result>> CreateMultipleLxcAsync(
+            string node,
+            string ostemplate,
+            string storage,
+            int count,
+            int diskSize = 8,
+            string namePrefix = null,
+            int? cores = null,
+            int? memory = null,
+            int? swap = null,
+            bool? onboot = null,
+            bool? start = null,
+            bool? unprivileged = null,
+            string net0 = null,
+            string pool = null,
+            string tags = null,
+            string password = null)
+        {
+            var results = new List<Result>();
+            for (int i = 0; i < count; i++)
+            {
+                int vmid = await GetNextVmIdAsync();
+                string hostname = string.IsNullOrEmpty(namePrefix) ? $"ct-{vmid}" : $"{namePrefix}-{i + 1}";
+
+                var result = await CreateLxcAsync(
+                    node: node,
+                    vmid: vmid,
+                    ostemplate: ostemplate,
+                    storage: storage,
+                    diskSize: diskSize,
+                    hostname: hostname,
+                    password: password,
+                    cores: cores,
+                    memory: memory,
+                    swap: swap,
+                    onboot: onboot,
+                    start: start,
+                    unprivileged: unprivileged,
+                    net0: net0,
+                    pool: pool,
+                    tags: tags);
+                results.Add(result);
+            }
+            return results;
+        }
+
+        public async Task<bool> UpdateLxcConfigAsync(string node, string vmid, Dictionary<string, string> changes)
+        {
+            var content = new FormUrlEncodedContent(changes);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PutAsync($"/api2/json/nodes/{node}/lxc/{vmid}/config", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetLxcSnapshotsAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/lxc/{vmid}/snapshot"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
+        }
+
+        public async Task<bool> CreateLxcSnapshotAsync(string node, string vmid, string snapname, string description = null)
+        {
+            var parameters = new Dictionary<string, string> { ["snapname"] = snapname };
+            if (!string.IsNullOrEmpty(description)) parameters["description"] = description;
+            var content = new FormUrlEncodedContent(parameters);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/lxc/{vmid}/snapshot", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<bool> CreateVmSnapshotAsync(string node, string vmid, string snapname, string description = null, bool vmstate = false)
+        {
+            var parameters = new Dictionary<string, string> { ["snapname"] = snapname };
+            if (!string.IsNullOrEmpty(description)) parameters["description"] = description;
+            if (vmstate) parameters["vmstate"] = "1";
+            var content = new FormUrlEncodedContent(parameters);
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.PostAsync($"/api2/json/nodes/{node}/qemu/{vmid}/snapshot", content));
+            return response.IsSuccessStatusCode;
+        }
+
+        public async Task<List<Dictionary<string, object>>> GetVmSnapshotsAsync(string node, string vmid)
+        {
+            var response = await SendRequestWithRetryAsync(() =>
+                _httpClient.GetAsync($"/api2/json/nodes/{node}/qemu/{vmid}/snapshot"));
+            return await DeserializeResponseAsync<List<Dictionary<string, object>>>(response);
         }
 
         public void Dispose()
