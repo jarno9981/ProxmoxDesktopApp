@@ -104,6 +104,32 @@
                         <FontIcon Glyph="&#xE8B7;" FontFamily="Segoe Fluent Icons"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
+                <NavigationViewItemSeparator/>
+                <NavigationViewItem Content="VM Details" Tag="vm_details">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE7C3;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Performance" Tag="performance">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D2;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Cluster" Tag="cluster">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEE35;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="ACL &amp; Roles" Tag="acl">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8D7;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem Content="Replication" Tag="replication">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE895;" FontFamily="Segoe Fluent Icons"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
             </NavigationView.MenuItems>
 
             <Grid>
@@ -310,8 +336,8 @@
                                             </StackPanel>
                                         </Button>
                                         <Button x:Name="ConsoleViewerProxmox"
-                                                Visibility="Collapsed"
-                                                IsEnabled="False"
+                                                Visibility="Visible"
+                                                IsEnabled="True"
                                                 Click="ConsoleViewerProxmox_Click">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
                                                 <FontIcon Glyph="&#xE756;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
@@ -2317,6 +2343,563 @@
 
                         </StackPanel>
                     </ScrollViewer>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════ VM DETAILS -->
+                <Grid x:Name="VmDetailsPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE7C3;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="VM Details" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Live info, guest agent data, and hardware summary" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <ComboBox x:Name="VmDetailsVmComboBox" PlaceholderText="Select VM/LXC"
+                                      SelectionChanged="VmDetailsVmComboBox_SelectionChanged"
+                                      MinWidth="200"/>
+                            <Button x:Name="VmDetailsRefreshButton" Click="VmDetailsRefreshButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                            <Button x:Name="VmDetailsConsoleButton" Click="VmDetailsConsoleButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE756;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Open Console"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Identity & Status -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE8A5;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Identity &amp; Status" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <Grid ColumnSpacing="8" RowSpacing="6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="VM ID" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsIdText" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Medium"/>
+                                        <TextBlock Text="Name" Grid.Row="1" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsNameText" Grid.Row="1" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Medium"/>
+                                        <TextBlock Text="Node" Grid.Row="2" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsNodeText" Grid.Row="2" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <TextBlock Text="Type" Grid.Row="3" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsTypeText" Grid.Row="3" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <TextBlock Text="Status" Grid.Row="4" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsStatusText" Grid.Row="4" Grid.Column="1" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                        <TextBlock Text="Uptime" Grid.Row="5" Opacity="0.6" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="VmDetailsUptimeText" Grid.Row="5" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Live Performance -->
+                            <Border Grid.Column="1"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE9D2;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Live Performance" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="CPU Usage" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                        <ProgressBar x:Name="VmDetailsCpuBar" Maximum="100" Height="6" CornerRadius="3"/>
+                                        <TextBlock x:Name="VmDetailsCpuText" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                        <TextBlock Text="Memory Usage" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" Margin="0,4,0,0"/>
+                                        <ProgressBar x:Name="VmDetailsMemBar" Maximum="100" Height="6" CornerRadius="3"/>
+                                        <TextBlock x:Name="VmDetailsMemText" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                        <TextBlock Text="Disk Read/Write" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="VmDetailsDiskText" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        <TextBlock Text="Network In/Out" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" Margin="0,4,0,0"/>
+                                        <TextBlock x:Name="VmDetailsNetText" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Hardware Config -->
+                            <Border Grid.Row="1"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE7F8;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Hardware Configuration" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="VmDetailsHardwareText"
+                                               Style="{ThemeResource BodyTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.8"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Guest Agent — OS & Network -->
+                            <Border Grid.Row="1" Grid.Column="1"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE774;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Guest Agent" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="VmDetailsAgentOsText"
+                                               Style="{ThemeResource BodyTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.8"/>
+                                    <TextBlock Text="Network Interfaces" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" Margin="0,8,0,0"/>
+                                    <ItemsControl x:Name="VmDetailsAgentNetList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding}" Style="{ThemeResource CaptionTextBlockStyle}" Margin="0,2"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Pending Changes -->
+                            <Border Grid.Row="2" Grid.ColumnSpan="2"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE8A3;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Pending Config Changes" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="VmDetailsPendingText"
+                                               Text="No pending changes"
+                                               Style="{ThemeResource BodyTextBlockStyle}"
+                                               Opacity="0.6"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════ PERFORMANCE -->
+                <Grid x:Name="PerformancePanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE9D2;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Performance" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Live node &amp; VM resource metrics" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <ComboBox x:Name="PerfNodeComboBox" PlaceholderText="Select node"
+                                      SelectionChanged="PerfNodeComboBox_SelectionChanged" MinWidth="160"/>
+                            <ComboBox x:Name="PerfTimeframeComboBox" PlaceholderText="Timeframe" MinWidth="120">
+                                <ComboBoxItem Content="Last Hour" Tag="hour" IsSelected="True"/>
+                                <ComboBoxItem Content="Last Day" Tag="day"/>
+                                <ComboBoxItem Content="Last Week" Tag="week"/>
+                                <ComboBoxItem Content="Last Month" Tag="month"/>
+                            </ComboBox>
+                            <Button x:Name="PerfRefreshButton" Click="PerfRefreshButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Refresh"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Spacing="12">
+                            <!-- Node metrics -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Node Metrics" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <Grid ColumnSpacing="16">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="CPU" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                            <ProgressBar x:Name="PerfNodeCpuBar" Maximum="100" Height="6" CornerRadius="3"/>
+                                            <TextBlock x:Name="PerfNodeCpuText" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Spacing="4">
+                                            <TextBlock Text="Memory" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                            <ProgressBar x:Name="PerfNodeMemBar" Maximum="100" Height="6" CornerRadius="3"/>
+                                            <TextBlock x:Name="PerfNodeMemText" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Spacing="4">
+                                            <TextBlock Text="Disk I/O" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                            <TextBlock x:Name="PerfNodeDiskText" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3" Spacing="4">
+                                            <TextBlock Text="Network I/O" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                            <TextBlock x:Name="PerfNodeNetText" Style="{ThemeResource BodyTextBlockStyle}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- VM metrics list -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="12">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE7F8;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="VM/LXC Resource Usage" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <ListView x:Name="PerfVmListView" MaxHeight="400" SelectionMode="None">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="local:PerfVmItem">
+                                                <Grid ColumnSpacing="12" Padding="4,6">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="60"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="60"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Name}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                    <ProgressBar Grid.Column="1" Value="{x:Bind CpuPercent}" Maximum="100" Height="6" VerticalAlignment="Center" CornerRadius="3"/>
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind CpuLabel}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                                    <ProgressBar Grid.Column="3" Value="{x:Bind MemPercent}" Maximum="100" Height="6" VerticalAlignment="Center" CornerRadius="3"/>
+                                                    <TextBlock Grid.Column="4" Text="{x:Bind MemLabel}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════ CLUSTER -->
+                <Grid x:Name="ClusterPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xEE35;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Cluster Status" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Nodes, quorum, and HA resource overview" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                        <Button x:Name="ClusterRefreshButton" Click="ClusterRefreshButton_Click"
+                                Margin="16,0,0,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                                <TextBlock Text="Refresh"/>
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <Grid ColumnSpacing="12" RowSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <!-- Cluster nodes -->
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE8B7;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Cluster Nodes" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <ListView x:Name="ClusterNodesListView" MaxHeight="300" SelectionMode="None">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Spacing="10" Padding="4,4">
+                                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                             Fill="{Binding Online, Converter={StaticResource StatusToColorConverterProxmox}}"/>
+                                                    <TextBlock Text="{Binding Name}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Role}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- HA Resources -->
+                            <Border Grid.Column="1"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE73E;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="HA Resources" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <ListView x:Name="ClusterHaListView" MaxHeight="300" SelectionMode="None">
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Padding="4,4" Spacing="2">
+                                                    <TextBlock Text="{Binding Sid}" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Medium"/>
+                                                    <TextBlock Text="{Binding State}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Replication jobs summary -->
+                            <Border Grid.Row="1" Grid.ColumnSpan="2"
+                                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1" CornerRadius="8" Padding="16">
+                                <StackPanel Spacing="10">
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <FontIcon Glyph="&#xE895;" FontSize="16" FontFamily="Segoe Fluent Icons"
+                                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                                        <TextBlock Text="Cluster Resources Summary" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="ClusterSummaryText"
+                                               Style="{ThemeResource BodyTextBlockStyle}"
+                                               TextWrapping="Wrap"
+                                               Opacity="0.8"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════ ACL & ROLES -->
+                <Grid x:Name="AclPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE8D7;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="ACL &amp; Roles" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="Access control list and permission management" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <Button x:Name="AclRefreshButton" Click="AclRefreshButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                            <Button x:Name="AddAclButton" Click="AddAclButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE710;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Add Rule"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DeleteAclButton" Click="DeleteAclButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                    <TextBlock Text="Delete" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- ACL list -->
+                        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Access Control Rules" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                <ListView x:Name="AclListView" SelectionMode="Single">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid ColumnSpacing="12" Padding="4,6">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="140"/>
+                                                    <ColumnDefinition Width="60"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding Path}" Style="{ThemeResource BodyTextBlockStyle}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Roleid}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Entity}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.7" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding Propagate}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6" VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Roles list -->
+                        <Border Grid.Column="1"
+                                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="16">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Available Roles" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                                <ListView x:Name="RolesListView" SelectionMode="None">
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Padding="4,4" Spacing="2">
+                                                <TextBlock Text="{Binding Roleid}" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Medium"/>
+                                                <TextBlock Text="{Binding Special}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.5"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+
+                <!-- ═══════════════════════════════════════════════════════ REPLICATION -->
+                <Grid x:Name="ReplicationPanelProxmox" Visibility="Collapsed" Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,16">
+                        <Border Width="36" Height="36" CornerRadius="8"
+                                Background="{ThemeResource AccentButtonBackground}">
+                            <FontIcon Glyph="&#xE895;" FontSize="18" FontFamily="Segoe Fluent Icons"
+                                      Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Replication" Style="{ThemeResource SubtitleTextBlockStyle}" FontWeight="SemiBold"/>
+                            <TextBlock Text="VM replication job management" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.6"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                            <Button x:Name="ReplRefreshButton" Click="ReplRefreshButton_Click">
+                                <FontIcon Glyph="&#xE72C;" FontSize="14" FontFamily="Segoe Fluent Icons"/>
+                            </Button>
+                            <Button x:Name="AddReplJobButton" Click="AddReplJobButton_Click"
+                                    Style="{ThemeResource AccentButtonStyle}">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE710;" FontSize="13" FontFamily="Segoe Fluent Icons"/>
+                                    <TextBlock Text="Add Job"/>
+                                </StackPanel>
+                            </Button>
+                            <Button x:Name="DeleteReplJobButton" Click="DeleteReplJobButton_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <FontIcon Glyph="&#xE74D;" FontSize="13" FontFamily="Segoe Fluent Icons"
+                                              Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                    <TextBlock Text="Delete" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <Border Grid.Row="1"
+                            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="Replication Jobs" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                            <ListView x:Name="ReplJobsListView" SelectionMode="Single">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ColumnSpacing="12" Padding="4,6">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="100"/>
+                                                <ColumnDefinition Width="120"/>
+                                                <ColumnDefinition Width="80"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{Binding Id}" Style="{ThemeResource BodyTextBlockStyle}" FontWeight="Medium" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Target}" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Type}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.7" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Schedule}" Style="{ThemeResource CaptionTextBlockStyle}" Opacity="0.7" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding EnabledLabel}" Style="{ThemeResource CaptionTextBlockStyle}" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </Border>
                 </Grid>
 
             </Grid>

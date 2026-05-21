@@ -552,20 +552,11 @@ namespace ProxmoxApiHelper
             }
         }
 
-        private async void ConsoleViewerProxmox_Click(object sender, RoutedEventArgs e)
+        private void ConsoleViewerProxmox_Click(object sender, RoutedEventArgs e)
         {
-            if (_selectedVm != null)
-            {
-                try
-                {
-                    VncViewerWindow vnc = new VncViewerWindow(_proxmoxClient, _selectedVm.Node, _selectedVm.Id);
-                    vnc.Activate();
-                }
-                catch (Exception ex)
-                {
-                    await ShowErrorDialog("VNC Error", $"Failed to open VNC viewer: {ex.Message}");
-                }
-            }
+            if (_selectedVm == null) return;
+            var consoleWindow = new VncViewerWindow(_proxmoxClient, _selectedVm.Node, _selectedVm.Id, _selectedVm.Type == "lxc");
+            consoleWindow.Activate();
         }
 
         private void NavViewProxmox_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
@@ -591,6 +582,11 @@ namespace ProxmoxApiHelper
             TasksPanelProxmox.Visibility = Visibility.Collapsed;
             FirewallPanelProxmox.Visibility = Visibility.Collapsed;
             NodeMgmtPanelProxmox.Visibility = Visibility.Collapsed;
+            VmDetailsPanelProxmox.Visibility = Visibility.Collapsed;
+            PerformancePanelProxmox.Visibility = Visibility.Collapsed;
+            ClusterPanelProxmox.Visibility = Visibility.Collapsed;
+            AclPanelProxmox.Visibility = Visibility.Collapsed;
+            ReplicationPanelProxmox.Visibility = Visibility.Collapsed;
 
             StopServerStatsTimer();
 
@@ -639,6 +635,26 @@ namespace ProxmoxApiHelper
                 case "node_mgmt":
                     NodeMgmtPanelProxmox.Visibility = Visibility.Visible;
                     _ = LoadNodeMgmtPanelAsync();
+                    break;
+                case "vm_details":
+                    VmDetailsPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadVmDetailsPanelAsync();
+                    break;
+                case "performance":
+                    PerformancePanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadPerformancePanelAsync();
+                    break;
+                case "cluster":
+                    ClusterPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadClusterPanelAsync();
+                    break;
+                case "acl":
+                    AclPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadAclPanelAsync();
+                    break;
+                case "replication":
+                    ReplicationPanelProxmox.Visibility = Visibility.Visible;
+                    _ = LoadReplicationPanelAsync();
                     break;
             }
         }
@@ -2440,6 +2456,600 @@ namespace ProxmoxApiHelper
             if (NodeMgmtNodeComboBox.SelectedItem is string node)
                 await LoadNodeSyslogAsync(node);
         }
+
+        // ──────────────────────────────────────────────────────────────────
+        // VM Details panel
+        // ──────────────────────────────────────────────────────────────────
+
+        private async Task LoadVmDetailsPanelAsync()
+        {
+            try
+            {
+                VmDetailsVmComboBox.Items.Clear();
+                var allVms = _vms.ToList();
+                foreach (var vm in allVms)
+                    VmDetailsVmComboBox.Items.Add(new SnapshotVmEntry { DisplayName = $"{vm.Name} ({vm.Id}) [{vm.Node}]", Vm = vm });
+                if (_selectedVm != null)
+                {
+                    for (int i = 0; i < VmDetailsVmComboBox.Items.Count; i++)
+                    {
+                        if (VmDetailsVmComboBox.Items[i] is SnapshotVmEntry entry && entry.Vm.Id == _selectedVm.Id)
+                        {
+                            VmDetailsVmComboBox.SelectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading VM details panel: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void VmDetailsVmComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (VmDetailsVmComboBox.SelectedItem is SnapshotVmEntry entry)
+                await RefreshVmDetailsAsync(entry.Vm);
+        }
+
+        private async void VmDetailsRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (VmDetailsVmComboBox.SelectedItem is SnapshotVmEntry entry)
+                await RefreshVmDetailsAsync(entry.Vm);
+        }
+
+        private async void VmDetailsConsoleButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (VmDetailsVmComboBox.SelectedItem is SnapshotVmEntry entry)
+            {
+                var consoleWindow = new VncViewerWindow(_proxmoxClient, entry.Vm.Node, entry.Vm.Id, entry.Vm.Type == "lxc");
+                consoleWindow.Activate();
+            }
+        }
+
+        private async Task RefreshVmDetailsAsync(ProxMachine vm)
+        {
+            try
+            {
+                bool isLxc = vm.Type == "lxc";
+                VmDetailsIdText.Text = vm.Id;
+                VmDetailsNameText.Text = vm.Name;
+                VmDetailsNodeText.Text = vm.Node;
+                VmDetailsTypeText.Text = isLxc ? "LXC Container" : "QEMU Virtual Machine";
+
+                Dictionary<string, object> status;
+                if (isLxc)
+                    status = await _proxmoxClient.GetLxcCurrentStatusAsync(vm.Node, vm.Id);
+                else
+                    status = await _proxmoxClient.GetVmCurrentStatusAsync(vm.Node, vm.Id);
+
+                string vmStatus = status.GetValueOrDefault("status")?.ToString() ?? "unknown";
+                VmDetailsStatusText.Text = vmStatus;
+
+                if (status.TryGetValue("uptime", out var uptimeObj) && long.TryParse(uptimeObj?.ToString(), out long uptime))
+                {
+                    var ts = TimeSpan.FromSeconds(uptime);
+                    VmDetailsUptimeText.Text = $"{(int)ts.TotalDays}d {ts.Hours:D2}h {ts.Minutes:D2}m";
+                }
+                else VmDetailsUptimeText.Text = "—";
+
+                if (status.TryGetValue("cpu", out var cpuObj) && double.TryParse(cpuObj?.ToString(), out double cpu))
+                {
+                    double cpuPct = cpu * 100;
+                    VmDetailsCpuBar.Value = cpuPct;
+                    VmDetailsCpuText.Text = $"{cpuPct:F1}%";
+                }
+                else { VmDetailsCpuBar.Value = 0; VmDetailsCpuText.Text = "—"; }
+
+                if (status.TryGetValue("mem", out var memObj) && status.TryGetValue("maxmem", out var maxMemObj)
+                    && long.TryParse(memObj?.ToString(), out long mem) && long.TryParse(maxMemObj?.ToString(), out long maxMem) && maxMem > 0)
+                {
+                    double memPct = (double)mem / maxMem * 100;
+                    VmDetailsMemBar.Value = memPct;
+                    VmDetailsMemText.Text = $"{mem / 1024 / 1024} MB / {maxMem / 1024 / 1024} MB ({memPct:F1}%)";
+                }
+                else { VmDetailsMemBar.Value = 0; VmDetailsMemText.Text = "—"; }
+
+                if (status.TryGetValue("diskread", out var drObj) && status.TryGetValue("diskwrite", out var dwObj))
+                    VmDetailsDiskText.Text = $"R: {FormatBytes(drObj?.ToString())} / W: {FormatBytes(dwObj?.ToString())}";
+                else VmDetailsDiskText.Text = "—";
+
+                if (status.TryGetValue("netin", out var niObj) && status.TryGetValue("netout", out var noObj))
+                    VmDetailsNetText.Text = $"In: {FormatBytes(niObj?.ToString())} / Out: {FormatBytes(noObj?.ToString())}";
+                else VmDetailsNetText.Text = "—";
+
+                // Hardware config
+                Dictionary<string, object> config;
+                if (isLxc)
+                    config = await _proxmoxClient.GetLxcConfigAsync(vm.Node, vm.Id);
+                else
+                    config = await _proxmoxClient.GetVmConfigAsync(vm.Node, vm.Id);
+
+                var hwLines = new System.Text.StringBuilder();
+                string[] hwKeys = { "cores", "sockets", "memory", "balloon", "cpu", "bios", "machine",
+                    "rootfs", "net0", "net1", "scsi0", "ide0", "virtio0", "sata0", "ostype" };
+                foreach (var key in hwKeys)
+                {
+                    if (config.TryGetValue(key, out var val) && val != null)
+                        hwLines.AppendLine($"{key}: {val}");
+                }
+                VmDetailsHardwareText.Text = hwLines.Length > 0 ? hwLines.ToString().TrimEnd() : "No hardware info available";
+
+                // Guest agent (VMs only)
+                if (!isLxc)
+                {
+                    var osInfo = await _proxmoxClient.GetVmAgentOsInfoAsync(vm.Node, vm.Id);
+                    if (osInfo.Count > 0)
+                    {
+                        string osName = osInfo.GetValueOrDefault("pretty-name")?.ToString()
+                            ?? osInfo.GetValueOrDefault("name")?.ToString() ?? "Unknown OS";
+                        string kernel = osInfo.GetValueOrDefault("kernel-version")?.ToString() ?? "";
+                        VmDetailsAgentOsText.Text = string.IsNullOrEmpty(kernel) ? osName : $"{osName}\nKernel: {kernel}";
+                    }
+                    else VmDetailsAgentOsText.Text = "Guest agent not available";
+
+                    var netIfaces = await _proxmoxClient.GetVmAgentNetworkInterfacesAsync(vm.Node, vm.Id);
+                    var netLines = new System.Collections.ObjectModel.ObservableCollection<string>();
+                    foreach (var iface in netIfaces)
+                    {
+                        string name = iface.GetValueOrDefault("name")?.ToString() ?? "?";
+                        if (name == "lo") continue;
+                        var ipAddresses = new List<string>();
+                        if (iface.TryGetValue("ip-addresses", out var ipsObj) && ipsObj?.ToString() is string ipsStr)
+                        {
+                            try
+                            {
+                                var arr = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(ipsStr);
+                                foreach (var ip in arr.EnumerateArray())
+                                {
+                                    string ipAddr = ip.GetProperty("ip-address").GetString();
+                                    string ipType = ip.GetProperty("ip-address-type").GetString();
+                                    if (ipType != "ipv6" || !ipAddr.StartsWith("fe80"))
+                                        ipAddresses.Add(ipAddr);
+                                }
+                            }
+                            catch { }
+                        }
+                        string ipDisplay = ipAddresses.Count > 0 ? string.Join(", ", ipAddresses) : "no IP";
+                        netLines.Add($"{name}: {ipDisplay}");
+                    }
+                    VmDetailsAgentNetList.ItemsSource = netLines;
+                }
+                else
+                {
+                    VmDetailsAgentOsText.Text = "LXC container";
+                    var lxcIfaces = await _proxmoxClient.GetLxcNetworkInterfacesAsync(vm.Node, vm.Id);
+                    var netLines = new System.Collections.ObjectModel.ObservableCollection<string>();
+                    foreach (var iface in lxcIfaces)
+                    {
+                        string name = iface.GetValueOrDefault("name")?.ToString() ?? "?";
+                        string ip = iface.GetValueOrDefault("inet")?.ToString() ?? iface.GetValueOrDefault("inet6")?.ToString() ?? "no IP";
+                        netLines.Add($"{name}: {ip}");
+                    }
+                    VmDetailsAgentNetList.ItemsSource = netLines;
+                }
+
+                // Pending changes (VMs only)
+                if (!isLxc)
+                {
+                    var pending = await _proxmoxClient.GetVmPendingAsync(vm.Node, vm.Id);
+                    if (pending != null && pending.Count > 0)
+                    {
+                        var pendingLines = new System.Text.StringBuilder();
+                        foreach (var item in pending)
+                        {
+                            string key = item.GetValueOrDefault("key")?.ToString() ?? "?";
+                            string value = item.GetValueOrDefault("value")?.ToString() ?? "";
+                            string pending2 = item.GetValueOrDefault("pending")?.ToString() ?? "";
+                            pendingLines.AppendLine($"{key}: {value} → {pending2}");
+                        }
+                        VmDetailsPendingText.Text = pendingLines.Length > 0 ? pendingLines.ToString().TrimEnd() : "No pending changes";
+                    }
+                    else VmDetailsPendingText.Text = "No pending changes";
+                }
+                else VmDetailsPendingText.Text = "Pending config tracking not available for LXC";
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading VM details: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private string FormatBytes(string bytesStr)
+        {
+            if (!long.TryParse(bytesStr, out long bytes)) return bytesStr ?? "—";
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+            if (bytes < 1024L * 1024 * 1024) return $"{bytes / 1024.0 / 1024:F1} MB";
+            return $"{bytes / 1024.0 / 1024 / 1024:F2} GB";
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Performance panel
+        // ──────────────────────────────────────────────────────────────────
+
+        private async Task LoadPerformancePanelAsync()
+        {
+            try
+            {
+                PerfNodeComboBox.Items.Clear();
+                var nodes = await _proxmoxClient.GetNodesAsync();
+                foreach (var node in nodes)
+                {
+                    string name = node.GetValueOrDefault("node")?.ToString() ?? "";
+                    if (!string.IsNullOrEmpty(name)) PerfNodeComboBox.Items.Add(name);
+                }
+                if (PerfNodeComboBox.Items.Count > 0)
+                    PerfNodeComboBox.SelectedIndex = 0;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading performance panel: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void PerfNodeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            await RefreshPerformanceAsync();
+        }
+
+        private async void PerfRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshPerformanceAsync();
+        }
+
+        private async Task RefreshPerformanceAsync()
+        {
+            try
+            {
+                string node = PerfNodeComboBox.SelectedItem?.ToString();
+                if (string.IsNullOrEmpty(node)) return;
+
+                string timeframe = "hour";
+                if (PerfTimeframeComboBox.SelectedItem is ComboBoxItem tfi && tfi.Tag?.ToString() is string tf)
+                    timeframe = tf;
+
+                var nodeStatus = await _proxmoxClient.GetNodeStatusAsync(node);
+                if (nodeStatus != null)
+                {
+                    if (nodeStatus.TryGetValue("cpu", out var cpuVal) && double.TryParse(cpuVal?.ToString(), out double cpu))
+                    {
+                        PerfNodeCpuBar.Value = cpu * 100;
+                        PerfNodeCpuText.Text = $"{cpu * 100:F1}%";
+                    }
+                    if (nodeStatus.TryGetValue("memory", out var memVal) && memVal is System.Text.Json.JsonElement memJe)
+                    {
+                        try
+                        {
+                            long used = memJe.GetProperty("used").GetInt64();
+                            long total = memJe.GetProperty("total").GetInt64();
+                            if (total > 0)
+                            {
+                                double pct = (double)used / total * 100;
+                                PerfNodeMemBar.Value = pct;
+                                PerfNodeMemText.Text = $"{used / 1024 / 1024} MB / {total / 1024 / 1024} MB ({pct:F1}%)";
+                            }
+                        }
+                        catch { }
+                    }
+                    PerfNodeDiskText.Text = nodeStatus.GetValueOrDefault("rootfs") != null ? "See storage panel" : "—";
+                    PerfNodeNetText.Text = "—";
+                }
+
+                // VM metrics list
+                var perfItems = new System.Collections.ObjectModel.ObservableCollection<PerfVmItem>();
+                var vmsOnNode = _vms.Where(v => v.Node == node).ToList();
+                foreach (var vm in vmsOnNode)
+                {
+                    try
+                    {
+                        bool isLxc = vm.Type == "lxc";
+                        Dictionary<string, object> vmStatus = isLxc
+                            ? await _proxmoxClient.GetLxcCurrentStatusAsync(vm.Node, vm.Id)
+                            : await _proxmoxClient.GetVmCurrentStatusAsync(vm.Node, vm.Id);
+
+                        double cpuPct = vmStatus.TryGetValue("cpu", out var c) && double.TryParse(c?.ToString(), out double cv) ? cv * 100 : 0;
+                        double memPct = 0;
+                        string memLabel = "—";
+                        if (vmStatus.TryGetValue("mem", out var m) && vmStatus.TryGetValue("maxmem", out var mm)
+                            && long.TryParse(m?.ToString(), out long memUsed) && long.TryParse(mm?.ToString(), out long maxMem) && maxMem > 0)
+                        {
+                            memPct = (double)memUsed / maxMem * 100;
+                            memLabel = $"{memPct:F0}%";
+                        }
+                        perfItems.Add(new PerfVmItem
+                        {
+                            Name = $"{vm.Name} ({vm.Id})",
+                            CpuPercent = cpuPct,
+                            CpuLabel = $"{cpuPct:F1}%",
+                            MemPercent = memPct,
+                            MemLabel = memLabel
+                        });
+                    }
+                    catch { }
+                }
+                PerfVmListView.ItemsSource = perfItems;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error refreshing performance: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Cluster panel
+        // ──────────────────────────────────────────────────────────────────
+
+        private async Task LoadClusterPanelAsync()
+        {
+            try
+            {
+                await RefreshClusterAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading cluster panel: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void ClusterRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshClusterAsync();
+        }
+
+        private async Task RefreshClusterAsync()
+        {
+            try
+            {
+                var clusterStatus = await _proxmoxClient.GetClusterStatusAsync();
+                var nodeItems = new List<object>();
+                var summaryLines = new System.Text.StringBuilder();
+
+                foreach (var item in clusterStatus)
+                {
+                    string type = item.GetValueOrDefault("type")?.ToString() ?? "";
+                    if (type == "node")
+                    {
+                        nodeItems.Add(new
+                        {
+                            Name = item.GetValueOrDefault("name")?.ToString() ?? "?",
+                            Role = item.GetValueOrDefault("local")?.ToString() == "1" ? "local" : "cluster",
+                            Online = item.GetValueOrDefault("online")?.ToString() == "1"
+                        });
+                    }
+                    else if (type == "cluster")
+                    {
+                        string clName = item.GetValueOrDefault("name")?.ToString() ?? "?";
+                        string quorate = item.GetValueOrDefault("quorate")?.ToString();
+                        string nodes = item.GetValueOrDefault("nodes")?.ToString() ?? "?";
+                        summaryLines.AppendLine($"Cluster: {clName}");
+                        summaryLines.AppendLine($"Nodes: {nodes}");
+                        summaryLines.AppendLine($"Quorum: {(quorate == "1" ? "OK" : "Lost")}");
+                    }
+                }
+                ClusterNodesListView.ItemsSource = nodeItems;
+                ClusterSummaryText.Text = summaryLines.Length > 0 ? summaryLines.ToString().TrimEnd() : "Standalone node (no cluster)";
+
+                var haResources = await _proxmoxClient.GetHaResourcesAsync();
+                var haItems = haResources.Select(ha => new
+                {
+                    Sid = ha.GetValueOrDefault("sid")?.ToString() ?? "?",
+                    State = ha.GetValueOrDefault("state")?.ToString() ?? "unknown"
+                }).ToList<object>();
+                ClusterHaListView.ItemsSource = haItems;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error refreshing cluster: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // ACL & Roles panel
+        // ──────────────────────────────────────────────────────────────────
+
+        private async Task LoadAclPanelAsync()
+        {
+            try
+            {
+                await RefreshAclAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading ACL panel: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void AclRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshAclAsync();
+        }
+
+        private async Task RefreshAclAsync()
+        {
+            try
+            {
+                var acls = await _proxmoxClient.GetAclAsync();
+                var aclItems = acls.Select(acl =>
+                {
+                    string userId = acl.GetValueOrDefault("ugid")?.ToString() ?? "";
+                    string type = acl.GetValueOrDefault("type")?.ToString() ?? "";
+                    string entity = type == "group" ? $"@{userId}" : userId;
+                    bool propagate = acl.GetValueOrDefault("propagate")?.ToString() == "1";
+                    return new
+                    {
+                        Path = acl.GetValueOrDefault("path")?.ToString() ?? "/",
+                        Roleid = acl.GetValueOrDefault("roleid")?.ToString() ?? "?",
+                        Entity = entity,
+                        Propagate = propagate ? "yes" : "no"
+                    };
+                }).ToList<object>();
+                AclListView.ItemsSource = aclItems;
+
+                var roles = await _proxmoxClient.GetRolesAsync();
+                var roleItems = roles.Select(r => new
+                {
+                    Roleid = r.GetValueOrDefault("roleid")?.ToString() ?? "?",
+                    Special = r.GetValueOrDefault("special")?.ToString() == "1" ? "built-in" : "custom"
+                }).ToList<object>();
+                RolesListView.ItemsSource = roleItems;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error refreshing ACL: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void AddAclButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Add ACL Rule",
+                    PrimaryButtonText = "Add",
+                    CloseButtonText = "Cancel",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                var pathBox = new TextBox { Header = "Path", PlaceholderText = "/" };
+                var roleBox = new TextBox { Header = "Role ID", PlaceholderText = "PVEVMAdmin" };
+                var userBox = new TextBox { Header = "User/Group ID", PlaceholderText = "user@pam" };
+                var stack = new StackPanel { Spacing = 8 };
+                stack.Children.Add(pathBox);
+                stack.Children.Add(roleBox);
+                stack.Children.Add(userBox);
+                dialog.Content = stack;
+                if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    bool ok = await _proxmoxClient.UpdateAclAsync(pathBox.Text, roleBox.Text, userBox.Text, null, true, false);
+                    if (ok) await RefreshAclAsync();
+                    else ShowStatus("Failed to add ACL rule", InfoBarSeverity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error adding ACL rule: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void DeleteAclButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (AclListView.SelectedItem == null)
+                {
+                    ShowStatus("Select an ACL rule to delete", InfoBarSeverity.Warning);
+                    return;
+                }
+                dynamic item = AclListView.SelectedItem;
+                bool ok = await _proxmoxClient.UpdateAclAsync(item.Path, item.Roleid, item.Entity, null, true, true);
+                if (ok) await RefreshAclAsync();
+                else ShowStatus("Failed to delete ACL rule", InfoBarSeverity.Error);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error deleting ACL rule: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+        // Replication panel
+        // ──────────────────────────────────────────────────────────────────
+
+        private async Task LoadReplicationPanelAsync()
+        {
+            try
+            {
+                await RefreshReplicationAsync();
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error loading replication panel: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void ReplRefreshButton_Click(object sender, RoutedEventArgs e)
+        {
+            await RefreshReplicationAsync();
+        }
+
+        private async Task RefreshReplicationAsync()
+        {
+            try
+            {
+                var jobs = await _proxmoxClient.GetReplicationJobsAsync();
+                var items = jobs.Select(j =>
+                {
+                    bool enabled = j.GetValueOrDefault("disable")?.ToString() != "1";
+                    return new ReplJobItem
+                    {
+                        Id = j.GetValueOrDefault("id")?.ToString() ?? "?",
+                        Target = j.GetValueOrDefault("target")?.ToString() ?? "?",
+                        Type = j.GetValueOrDefault("type")?.ToString() ?? "?",
+                        Schedule = j.GetValueOrDefault("schedule")?.ToString() ?? "*/15",
+                        EnabledLabel = enabled ? "Enabled" : "Disabled"
+                    };
+                }).ToList();
+                ReplJobsListView.ItemsSource = items;
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error refreshing replication jobs: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void AddReplJobButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Add Replication Job",
+                    PrimaryButtonText = "Create",
+                    CloseButtonText = "Cancel",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                var idBox = new TextBox { Header = "Job ID (vmid-index, e.g. 100-0)", PlaceholderText = "100-0" };
+                var targetBox = new TextBox { Header = "Target Node", PlaceholderText = "node2" };
+                var scheduleBox = new TextBox { Header = "Schedule (cron)", PlaceholderText = "*/15" };
+                var stack = new StackPanel { Spacing = 8 };
+                stack.Children.Add(idBox);
+                stack.Children.Add(targetBox);
+                stack.Children.Add(scheduleBox);
+                dialog.Content = stack;
+                if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                {
+                    string schedule = string.IsNullOrWhiteSpace(scheduleBox.Text) ? "*/15" : scheduleBox.Text;
+                    bool ok = await _proxmoxClient.CreateReplicationJobAsync(idBox.Text, targetBox.Text, "local", schedule, true);
+                    if (ok) await RefreshReplicationAsync();
+                    else ShowStatus("Failed to create replication job", InfoBarSeverity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error adding replication job: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
+
+        private async void DeleteReplJobButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (ReplJobsListView.SelectedItem is not ReplJobItem job)
+                {
+                    ShowStatus("Select a replication job to delete", InfoBarSeverity.Warning);
+                    return;
+                }
+                bool ok = await _proxmoxClient.DeleteReplicationJobAsync(job.Id);
+                if (ok) await RefreshReplicationAsync();
+                else ShowStatus("Failed to delete replication job", InfoBarSeverity.Error);
+            }
+            catch (Exception ex)
+            {
+                ShowStatus($"Error deleting replication job: {ex.Message}", InfoBarSeverity.Error);
+            }
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────
@@ -2522,6 +3132,24 @@ namespace ProxmoxApiHelper
     }
 
 
+
+    public class PerfVmItem
+    {
+        public string Name { get; set; }
+        public double CpuPercent { get; set; }
+        public string CpuLabel { get; set; }
+        public double MemPercent { get; set; }
+        public string MemLabel { get; set; }
+    }
+
+    public class ReplJobItem
+    {
+        public string Id { get; set; }
+        public string Target { get; set; }
+        public string Type { get; set; }
+        public string Schedule { get; set; }
+        public string EnabledLabel { get; set; }
+    }
 
     public class ProxMachine
     {
