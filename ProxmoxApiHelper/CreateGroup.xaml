@@ -9,67 +9,167 @@
     mc:Ignorable="d"
     Title="Create Group">
 
-
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
 
-    <Grid Margin="20">
+    <Grid Margin="24">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Spacing="10">
-            <TextBlock Text="Create New Group" Style="{StaticResource TitleTextBlockStyle}"/>
-            <TextBox x:Name="GroupIdTextBox" Header="Group ID" PlaceholderText="Enter group ID"/>
-            <TextBox x:Name="CommentTextBox" Header="Comment" PlaceholderText="Enter group comment"/>
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,20">
+            <Border Width="40" Height="40" CornerRadius="10"
+                    Background="{ThemeResource AccentButtonBackground}">
+                <FontIcon Glyph="&#xE902;" FontSize="20"
+                          FontFamily="Segoe Fluent Icons"
+                          Foreground="White"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="Create New Group"
+                           Style="{ThemeResource SubtitleTextBlockStyle}"
+                           FontWeight="SemiBold"/>
+                <TextBlock Text="Define a group and assign members"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Opacity="0.6"/>
+            </StackPanel>
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,20,0,0">
+        <!-- Group Info Card -->
+        <Border Grid.Row="1"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="16"
+                Margin="0,0,0,12">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBox x:Name="GroupIdTextBox"
+                         Header="Group ID"
+                         PlaceholderText="e.g. admins"
+                         HorizontalAlignment="Stretch"/>
+                <TextBox x:Name="CommentTextBox"
+                         Grid.Column="1"
+                         Header="Comment"
+                         PlaceholderText="Optional description"
+                         HorizontalAlignment="Stretch"/>
+            </Grid>
+        </Border>
+
+        <!-- Member transfer list -->
+        <Grid Grid.Row="2">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0" Spacing="10">
-                <TextBlock Text="Available Users" Style="{StaticResource SubtitleTextBlockStyle}"/>
-                <ListView x:Name="AvailableUsersListView" Height="300" SelectionMode="Multiple">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Email}"/>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
+            <!-- Available Users -->
+            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE716;" FontSize="14"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="Available Users"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                    </StackPanel>
+                    <ListView x:Name="AvailableUsersListView"
+                              SelectionMode="Extended"
+                              MinHeight="240">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Padding="2">
+                                    <TextBlock Text="{Binding UserId}"
+                                               Style="{ThemeResource BodyTextBlockStyle}"/>
+                                    <TextBlock Text="{Binding Email}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Opacity="0.6"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
+
+            <!-- Transfer buttons -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="8" Margin="8,0">
+                <Button x:Name="AddUsersButton"
+                        Click="AddUsersButton_Click"
+                        Width="36" Height="36"
+                        ToolTipService.ToolTip="Add to group"
+                        Padding="0">
+                    <FontIcon Glyph="&#xE76C;" FontSize="14"
+                              FontFamily="Segoe Fluent Icons"/>
+                </Button>
+                <Button x:Name="RemoveUsersButton"
+                        Click="RemoveUsersButton_Click"
+                        Width="36" Height="36"
+                        ToolTipService.ToolTip="Remove from group"
+                        Padding="0">
+                    <FontIcon Glyph="&#xE76B;" FontSize="14"
+                              FontFamily="Segoe Fluent Icons"/>
+                </Button>
             </StackPanel>
 
-            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="10">
-                <Button x:Name="AddUsersButton" Click="AddUsersButton_Click">
-                    <SymbolIcon Symbol="Forward"/>
-                </Button>
-                <Button x:Name="RemoveUsersButton" Click="RemoveUsersButton_Click">
-                    <SymbolIcon Symbol="Back"/>
-                </Button>
-            </StackPanel>
-
-            <StackPanel Grid.Column="2" Spacing="10">
-                <TextBlock Text="Group Members" Style="{StaticResource SubtitleTextBlockStyle}"/>
-                <ListView x:Name="GroupMembersListView" Height="300" SelectionMode="Multiple">
-                    <ListView.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Email}"/>
-                        </DataTemplate>
-                    </ListView.ItemTemplate>
-                </ListView>
-            </StackPanel>
+            <!-- Group Members -->
+            <Border Grid.Column="2"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource AccentButtonBackground}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Padding="12">
+                <StackPanel Spacing="10">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE902;" FontSize="14"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                        <TextBlock Text="Group Members"
+                                   Style="{ThemeResource BodyStrongTextBlockStyle}"
+                                   Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+                    <ListView x:Name="GroupMembersListView"
+                              SelectionMode="Extended"
+                              MinHeight="240">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Padding="2">
+                                    <TextBlock Text="{Binding UserId}"
+                                               Style="{ThemeResource BodyTextBlockStyle}"/>
+                                    <TextBlock Text="{Binding Email}"
+                                               Style="{ThemeResource CaptionTextBlockStyle}"
+                                               Opacity="0.6"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </StackPanel>
+            </Border>
         </Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
-            <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_Click"/>
-            <Button x:Name="CreateButton" Content="Create Group" Click="CreateButton_Click" Style="{StaticResource AccentButtonStyle}"/>
+        <!-- Actions -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Spacing="8" Margin="0,16,0,0">
+            <Button x:Name="CancelButton" Content="Cancel" Click="CancelButton_Click" Width="80"/>
+            <Button x:Name="CreateButton"
+                    Content="Create Group"
+                    Click="CreateButton_Click"
+                    Style="{ThemeResource AccentButtonStyle}"
+                    MinWidth="120"/>
         </StackPanel>
     </Grid>
 </Window>
-

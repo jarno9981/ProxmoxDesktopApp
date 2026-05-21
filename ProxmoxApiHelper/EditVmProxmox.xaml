@@ -8,7 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
-    Title="Edit VM">
+    Title="Edit VM Configuration">
 
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
@@ -21,161 +21,244 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Edit VM Configuration" 
-                   Style="{ThemeResource TitleTextBlockStyle}" 
-                   Margin="0,20,0,20"
-                   HorizontalAlignment="Center"/>
+        <!-- Header bar -->
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Width="36" Height="36" CornerRadius="8"
+                        Background="{ThemeResource AccentButtonBackground}">
+                    <FontIcon Glyph="&#xE7F8;" FontSize="18"
+                              FontFamily="Segoe Fluent Icons"
+                              Foreground="White"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Edit VM Configuration"
+                               Style="{ThemeResource SubtitleTextBlockStyle}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Modify hardware and system settings"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Opacity="0.6"/>
+                </StackPanel>
+                <ProgressRing x:Name="LoadingProgressRing"
+                              Width="20" Height="20"
+                              IsActive="True"
+                              VerticalAlignment="Center"
+                              Margin="12,0,0,0"/>
+            </StackPanel>
+        </Border>
 
-        <ScrollViewer Grid.Row="1" 
-                      VerticalScrollBarVisibility="Auto" 
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
-                      Padding="16,0">
-            <StackPanel Spacing="10">
-                <ProgressRing x:Name="LoadingProgressRing" IsActive="True" Width="50" Height="50"/>
-
-                <!-- System Section -->
-                <controls:Expander Header="System" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <controls:Expander.Content>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE7F8;" 
-                                      VerticalAlignment="Top" 
-                                      HorizontalAlignment="Left" 
-                                      Margin="8,8,0,0"/>
-                            <StackPanel Grid.Column="1" 
-                                        Spacing="10" 
-                                        Margin="0,0,16,0">
-                                <TextBox Header="Name" x:Name="NameTextBox" PlaceholderText="VM Name"/>
-                                <ComboBox Header="CPU Category" x:Name="CpuCategoryComboBox" HorizontalAlignment="Stretch" />
-                                <ComboBox Header="CPU Type" x:Name="CpuTypeComboBox" HorizontalAlignment="Stretch" />
-                                <NumberBox Header="CPU Cores" x:Name="CpuCoresTextBox" PlaceholderText="Number of CPU cores" SpinButtonPlacementMode="Compact" />
-                                <NumberBox Header="CPU Sockets" x:Name="CpuSocketsTextBox" PlaceholderText="Number of CPU sockets" SpinButtonPlacementMode="Compact" />
-                                <NumberBox Header="Memory (MB)" x:Name="MemoryTextBox" PlaceholderText="Memory in MB" SpinButtonPlacementMode="Compact" />
-                                <NumberBox Header="Balloon (MB)" x:Name="BalloonTextBox" PlaceholderText="Minimum memory" SpinButtonPlacementMode="Compact" />
-                            </StackPanel>
-                        </Grid>
-                    </controls:Expander.Content>
-                </controls:Expander>
-
-                <!-- Storage Section -->
-                <controls:Expander Header="Storage" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <controls:Expander.Content>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE8B7;" 
-                                      VerticalAlignment="Top" 
-                                      HorizontalAlignment="Left" 
-                                      Margin="8,8,0,0"/>
-                            <StackPanel Grid.Column="1" 
-                                        Spacing="10" 
-                                        Margin="0,0,16,0">
-                                <TextBox Header="Disk Size Change" x:Name="DiskSizeTextBox" PlaceholderText="e.g. +10G"/>
-                                <ComboBox Header="Storage Location" x:Name="StorageComboBox" HorizontalAlignment="Stretch" />
-                            </StackPanel>
-                        </Grid>
-                    </controls:Expander.Content>
-                </controls:Expander>
-
-                <!-- Boot Configuration Section -->
-                <controls:Expander Header="Boot Configuration" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <controls:Expander.Content>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE7E8;" 
-                                      VerticalAlignment="Top" 
-                                      HorizontalAlignment="Left" 
-                                      Margin="8,8,0,0"/>
-                            <StackPanel Grid.Column="1" 
-                                        Spacing="10" 
-                                        Margin="0,0,16,0">
-                                <ComboBox Header="BIOS Type" x:Name="BiosTypeComboBox" HorizontalAlignment="Stretch" />
-                                <TextBox Header="Boot Order" x:Name="BootOrderTextBox" PlaceholderText="e.g. cdn"/>
-                                <ToggleSwitch Header="Start at Boot" x:Name="StartAtBootToggleSwitch" />
-                                <ComboBox x:Name="OsTypeComboBox" Header="OS Type" Margin="0,10,0,0"/>
-                                <ComboBox x:Name="OsVersionComboBox" Header="OS Version" Margin="0,10,0,0"/>
-                                <CheckBox x:Name="VirtioDriversCheckBox" Content="Use Virtio Drivers" Margin="0,10,0,0" Visibility="Collapsed"/>
-                            </StackPanel>
-                        </Grid>
-                    </controls:Expander.Content>
-                </controls:Expander>
-
-                <!-- Network Section -->
-                <controls:Expander Header="Network" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <controls:Expander.Content>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE839;" 
-                                      VerticalAlignment="Top" 
-                                      HorizontalAlignment="Left" 
-                                      Margin="8,8,0,0"/>
-                            <StackPanel Grid.Column="1" 
-                                        Spacing="10" 
-                                        Margin="0,0,16,0">
-                                <ComboBox Header="Network Model" x:Name="NetworkModelComboBox" HorizontalAlignment="Stretch" />
-                                <TextBox Header="MAC Address" x:Name="MacAddressTextBox" PlaceholderText="Optional"/>
-                                <TextBox Header="Bridge" x:Name="BridgeTextBox" PlaceholderText="Default: vmbr0" />
-                                <ToggleSwitch Header="Enable Firewall" x:Name="FirewallToggleSwitch" />
-                            </StackPanel>
-                        </Grid>
-                    </controls:Expander.Content>
-                </controls:Expander>
-
-                <!-- Display Section -->
-                <controls:Expander Header="Display" IsExpanded="False" HorizontalAlignment="Stretch">
-                    <controls:Expander.Content>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="40"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <FontIcon Glyph="&#xE7F4;" 
-                                      VerticalAlignment="Top" 
-                                      HorizontalAlignment="Left" 
-                                      Margin="8,8,0,0"/>
-                            <StackPanel Grid.Column="1" 
-                                        Spacing="10" 
-                                        Margin="0,0,16,0">
-                                <ComboBox Header="Display Type" x:Name="DisplayTypeComboBox" HorizontalAlignment="Stretch"/>
-                                <NumberBox Header="Graphics Memory" x:Name="GraphicsMemoryTextBox" PlaceholderText="Memory in MB" SpinButtonPlacementMode="Compact" />
-                                <ToggleSwitch Header="Enable 3D Acceleration" x:Name="Enable3DAccelerationToggleSwitch" />
-                            </StackPanel>
-                        </Grid>
-                    </controls:Expander.Content>
-                </controls:Expander>
+                      Padding="20">
+            <StackPanel Spacing="8">
 
                 <!-- EFI Warning -->
-                <InfoBar x:Name="EfiWarningInfoBar" 
-                         Title="UEFI Warning"
-                         Message="Changing to UEFI will create an EFI disk in local storage for this VM."
+                <InfoBar x:Name="EfiWarningInfoBar"
+                         Title="UEFI Notice"
+                         Message="Switching to UEFI will create an EFI disk in local storage for this VM."
                          Severity="Warning"
                          IsOpen="True"
-                         />
+                         IsClosable="True"
+                         Margin="0,0,0,8"/>
+
+                <!-- System -->
+                <controls:Expander IsExpanded="True"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Stretch">
+                    <controls:Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,8">
+                            <FontIcon Glyph="&#xE7F8;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="System" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                    </controls:Expander.Header>
+                    <StackPanel Spacing="12" Padding="0,8,0,16">
+                        <TextBox Header="VM Name" x:Name="NameTextBox"
+                                 PlaceholderText="Virtual machine name"
+                                 HorizontalAlignment="Stretch"/>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Header="CPU Category" x:Name="CpuCategoryComboBox"
+                                      HorizontalAlignment="Stretch"/>
+                            <ComboBox Header="CPU Type" x:Name="CpuTypeComboBox"
+                                      Grid.Column="1" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <NumberBox Header="CPU Cores" x:Name="CpuCoresTextBox"
+                                       SpinButtonPlacementMode="Compact"
+                                       Minimum="1"/>
+                            <NumberBox Header="CPU Sockets" x:Name="CpuSocketsTextBox"
+                                       Grid.Column="1"
+                                       SpinButtonPlacementMode="Compact"
+                                       Minimum="1"/>
+                            <NumberBox Header="Memory (MB)" x:Name="MemoryTextBox"
+                                       Grid.Column="2"
+                                       SpinButtonPlacementMode="Compact"
+                                       Minimum="32"/>
+                        </Grid>
+                        <NumberBox Header="Balloon Memory (MB)" x:Name="BalloonTextBox"
+                                   PlaceholderText="Minimum memory (0 = disabled)"
+                                   SpinButtonPlacementMode="Compact"
+                                   HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </controls:Expander>
+
+                <!-- Storage -->
+                <controls:Expander IsExpanded="False"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Stretch">
+                    <controls:Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,8">
+                            <FontIcon Glyph="&#xE8B7;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Storage" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                    </controls:Expander.Header>
+                    <StackPanel Spacing="12" Padding="0,8,0,16">
+                        <TextBox Header="Disk Size Change" x:Name="DiskSizeTextBox"
+                                 PlaceholderText="e.g. +10G to grow by 10 GB"
+                                 HorizontalAlignment="Stretch"/>
+                        <ComboBox Header="Storage Location" x:Name="StorageComboBox"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </controls:Expander>
+
+                <!-- Boot Configuration -->
+                <controls:Expander IsExpanded="False"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Stretch">
+                    <controls:Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,8">
+                            <FontIcon Glyph="&#xE7E8;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Boot Configuration" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                    </controls:Expander.Header>
+                    <StackPanel Spacing="12" Padding="0,8,0,16">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Header="BIOS Type" x:Name="BiosTypeComboBox"
+                                      HorizontalAlignment="Stretch"/>
+                            <ComboBox Header="OS Type" x:Name="OsTypeComboBox"
+                                      Grid.Column="1" HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Header="OS Version" x:Name="OsVersionComboBox"
+                                      HorizontalAlignment="Stretch"/>
+                            <TextBox Header="Boot Order" x:Name="BootOrderTextBox"
+                                     Grid.Column="1"
+                                     PlaceholderText="e.g. cdn"
+                                     HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <ToggleSwitch Header="Start at Boot" x:Name="StartAtBootToggleSwitch"/>
+                        <CheckBox x:Name="VirtioDriversCheckBox"
+                                  Content="Use Virtio Drivers"
+                                  Visibility="Collapsed"/>
+                    </StackPanel>
+                </controls:Expander>
+
+                <!-- Network -->
+                <controls:Expander IsExpanded="False"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Stretch">
+                    <controls:Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,8">
+                            <FontIcon Glyph="&#xE839;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Network" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                    </controls:Expander.Header>
+                    <StackPanel Spacing="12" Padding="0,8,0,16">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Header="Network Model" x:Name="NetworkModelComboBox"
+                                      HorizontalAlignment="Stretch"/>
+                            <TextBox Header="Bridge" x:Name="BridgeTextBox"
+                                     Grid.Column="1"
+                                     PlaceholderText="vmbr0"
+                                     HorizontalAlignment="Stretch"/>
+                        </Grid>
+                        <TextBox Header="MAC Address" x:Name="MacAddressTextBox"
+                                 PlaceholderText="Auto-generated if left blank"
+                                 HorizontalAlignment="Stretch"/>
+                        <ToggleSwitch Header="Enable Firewall" x:Name="FirewallToggleSwitch"/>
+                    </StackPanel>
+                </controls:Expander>
+
+                <!-- Display -->
+                <controls:Expander IsExpanded="False"
+                                   HorizontalAlignment="Stretch"
+                                   HorizontalContentAlignment="Stretch">
+                    <controls:Expander.Header>
+                        <StackPanel Orientation="Horizontal" Spacing="10" Padding="0,8">
+                            <FontIcon Glyph="&#xE7F4;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Display" Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                    </controls:Expander.Header>
+                    <StackPanel Spacing="12" Padding="0,8,0,16">
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Header="Display Type" x:Name="DisplayTypeComboBox"
+                                      HorizontalAlignment="Stretch"/>
+                            <NumberBox Header="Graphics Memory (MB)" x:Name="GraphicsMemoryTextBox"
+                                       Grid.Column="1"
+                                       SpinButtonPlacementMode="Compact"/>
+                        </Grid>
+                        <ToggleSwitch Header="Enable 3D Acceleration"
+                                      x:Name="Enable3DAccelerationToggleSwitch"/>
+                    </StackPanel>
+                </controls:Expander>
+
             </StackPanel>
         </ScrollViewer>
 
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal" 
-                    HorizontalAlignment="Center" 
-                    Margin="0,20,0,20">
-            <Button Content="Cancel" 
-                    x:Name="CancelButton" 
-                    Style="{ThemeResource AccentButtonStyle}" 
-                    Margin="0,0,10,0"/>
-            <Button Content="Save" 
-                    x:Name="SaveButton" 
-                    Style="{ThemeResource AccentButtonStyle}"/>
-        </StackPanel>
+        <!-- Footer actions -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button Content="Cancel"
+                        x:Name="CancelButton"
+                        MinWidth="80"/>
+                <Button Content="Save Changes"
+                        x:Name="SaveButton"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        MinWidth="120"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

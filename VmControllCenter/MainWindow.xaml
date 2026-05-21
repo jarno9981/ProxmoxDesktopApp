@@ -6,33 +6,103 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="Login Vm Control Center"
+    Title="VM Control Center — Login"
     Closed="Window_Closed">
 
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
-    
-    <Grid>
-        <Grid Padding="24" Margin="16" HorizontalAlignment="Stretch" VerticalAlignment="Center">
-            <StackPanel>
-                <TextBlock Text="VM Control Center" Style="{ThemeResource TitleLargeTextBlockStyle}" HorizontalAlignment="Center" Margin="0,0,0,24"/>
 
-                <ComboBox x:Name="PlatformComboBox" SelectedItem="Proxmox" Header="Select Platform" PlaceholderText="Choose platform" Margin="0,0,0,16" HorizontalAlignment="Stretch">
+    <Grid>
+        <!-- Centered login card -->
+        <Border MaxWidth="420"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Margin="24"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="40,36">
+            <StackPanel Spacing="0">
+
+                <!-- App branding -->
+                <StackPanel HorizontalAlignment="Center" Margin="0,0,0,32">
+                    <Border Width="64" Height="64" CornerRadius="16"
+                            Background="{ThemeResource AccentButtonBackground}"
+                            HorizontalAlignment="Center" Margin="0,0,0,16">
+                        <FontIcon Glyph="&#xE7EF;" FontSize="32"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Foreground="White"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="VM Control Center"
+                               Style="{ThemeResource TitleTextBlockStyle}"
+                               HorizontalAlignment="Center"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Manage your virtual infrastructure"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               HorizontalAlignment="Center"
+                               Opacity="0.6"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <!-- Platform selector -->
+                <ComboBox x:Name="PlatformComboBox"
+                          SelectedIndex="0"
+                          Header="Platform"
+                          HorizontalAlignment="Stretch"
+                          Margin="0,0,0,12">
                     <ComboBoxItem Content="Proxmox"/>
                     <ComboBoxItem Content="ESXi"/>
                 </ComboBox>
 
-                <TextBox x:Name="UrlTextBox" Text="https://:8006/" Header="Server URL" PlaceholderText="Enter server URL" Margin="0,0,0,16"/>
+                <!-- Server URL -->
+                <TextBox x:Name="UrlTextBox"
+                         Text="https://:8006/"
+                         Header="Server URL"
+                         PlaceholderText="https://192.168.1.100:8006/"
+                         HorizontalAlignment="Stretch"
+                         Margin="0,0,0,12"/>
 
-                <TextBox x:Name="UsernameTextBox" Text="" Header="Username" PlaceholderText="Enter username" Margin="0,0,0,16"/>
+                <!-- Username -->
+                <TextBox x:Name="UsernameTextBox"
+                         Header="Username"
+                         PlaceholderText="root"
+                         HorizontalAlignment="Stretch"
+                         Margin="0,0,0,12"/>
 
-                <PasswordBox x:Name="PasswordBox" Password="" Header="Password" PlaceholderText="Enter password" Margin="0,0,0,24"/>
+                <!-- Password -->
+                <PasswordBox x:Name="PasswordBox"
+                             Header="Password"
+                             PlaceholderText="Enter password"
+                             HorizontalAlignment="Stretch"
+                             Margin="0,0,0,24"/>
 
-                <Button x:Name="LoginButton" Content="Login" Click="LoginButton_Click" Style="{ThemeResource AccentButtonStyle}" HorizontalAlignment="Stretch"/>
+                <!-- Login button -->
+                <Button x:Name="LoginButton"
+                        Content="Sign In"
+                        Click="LoginButton_Click"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        HorizontalAlignment="Stretch"
+                        Height="40"
+                        FontSize="14"/>
 
-                <TextBlock x:Name="StatusTextBlock" Text="" Style="{ThemeResource BodyTextBlockStyle}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                <!-- Status feedback -->
+                <InfoBar x:Name="StatusInfoBar"
+                         IsOpen="False"
+                         IsClosable="False"
+                         Margin="0,16,0,0"/>
+
+                <TextBlock x:Name="StatusTextBlock"
+                           Text=""
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           HorizontalAlignment="Center"
+                           Opacity="0.6"
+                           Margin="0,8,0,0"
+                           TextWrapping="Wrap"/>
             </StackPanel>
-        </Grid>
+        </Border>
     </Grid>
 </Window>

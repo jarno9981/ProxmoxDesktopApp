@@ -32,7 +32,8 @@ namespace ProxmoxApiHelper
             _node = node;
             _vmid = vmid;
 
-            Title = $"VNC Viewer - VM {_vmid} on {_node}";
+            Title = $"VM Console — {_vmid} on {_node}";
+            VmTitleTextBlock.Text = $"VM {_vmid} — {_node}";
             InitializeAsync();
         }
 
@@ -137,7 +138,8 @@ echo $VNC_PORT
                // await _webSocket.ConnectAsync(wsUri, _cts.Token);
 
                 _isConnected = true;
-                UpdateStatus($"Connected to VNC on port {vncPort} (Certificate errors ignored)");
+                UpdateStatus($"Connected — port {vncPort}");
+                ConnectionProgressRing.IsActive = false;
                 UpdateButtonStates();
 
                 _ = ReceiveVncDataAsync();
@@ -256,6 +258,11 @@ echo $VNC_PORT
         private void UpdateStatus(string message)
         {
             StatusTextBlock.Text = message;
+        }
+
+        private void UpdateResolution(int width, int height)
+        {
+            ResolutionTextBlock.Text = $"{width}×{height}";
         }
 
         private void UpdateButtonStates()

@@ -8,6 +8,10 @@
     mc:Ignorable="d"
     Title="VNC Viewer">
 
+    <Window.SystemBackdrop>
+        <MicaBackdrop Kind="BaseAlt"/>
+    </Window.SystemBackdrop>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -15,14 +19,93 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal" Margin="10">
-            <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click" Margin="0,0,10,0"/>
-            <Button x:Name="SendCtrlAltDelButton" Content="Send Ctrl+Alt+Del" Click="SendCtrlAltDelButton_Click"/>
-        </StackPanel>
+        <!-- Toolbar -->
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="12,8">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <Image x:Name="VncImage" Grid.Row="1" Stretch="Uniform"/>
+                <!-- Left: VM identity -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Width="28" Height="28" CornerRadius="6"
+                            Background="{ThemeResource AccentButtonBackground}">
+                        <FontIcon Glyph="&#xE7F8;" FontSize="14"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Foreground="White"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="VmTitleTextBlock"
+                               Text="VM Console"
+                               Style="{ThemeResource BodyStrongTextBlockStyle}"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
 
-        <TextBlock x:Name="StatusTextBlock" Grid.Row="2" Margin="10"/>
+                <!-- Right: Actions -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
+                    <Button x:Name="SendCtrlAltDelButton"
+                            Click="SendCtrlAltDelButton_Click"
+                            ToolTipService.ToolTip="Send Ctrl+Alt+Del">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE8B5;" FontSize="14"
+                                      FontFamily="Segoe Fluent Icons"/>
+                            <TextBlock Text="Ctrl+Alt+Del"/>
+                        </StackPanel>
+                    </Button>
+                    <Button x:Name="DisconnectButton"
+                            Click="DisconnectButton_Click"
+                            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                            ToolTipService.ToolTip="Disconnect from VM">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <FontIcon Glyph="&#xE711;" FontSize="14"
+                                      FontFamily="Segoe Fluent Icons"/>
+                            <TextBlock Text="Disconnect"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- VNC Display -->
+        <Border Grid.Row="1"
+                Background="#FF000000">
+            <Image x:Name="VncImage" Stretch="Uniform"/>
+        </Border>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="12,6">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <ProgressRing x:Name="ConnectionProgressRing"
+                              Width="16" Height="16"
+                              IsActive="True"
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0"/>
+                <TextBlock x:Name="StatusTextBlock"
+                           Grid.Column="1"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Opacity="0.7"
+                           VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2"
+                           x:Name="ResolutionTextBlock"
+                           Style="{ThemeResource CaptionTextBlockStyle}"
+                           Opacity="0.5"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
     </Grid>
 </Window>
-

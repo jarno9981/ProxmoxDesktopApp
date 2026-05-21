@@ -13,133 +13,217 @@
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
 
-
-    <Grid Margin="24">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Create New User" 
-                 Style="{StaticResource TitleTextBlockStyle}" 
-                 Margin="0,0,0,20"/>
-
-        <ScrollViewer Grid.Row="1" 
-                     VerticalScrollMode="Auto" 
-                     VerticalScrollBarVisibility="Auto">
-            <StackPanel Spacing="16">
-                <!-- Required Information -->
-                <StackPanel >
-                    <TextBlock Text="Required Information" 
-                             Style="{StaticResource SubtitleTextBlockStyle}" 
-                             Margin="0,0,0,8"/>
-
-                    <TextBox x:Name="UserIdTextBox" 
-                            Header="User ID (name@pve)"
-                            PlaceholderText="Enter username in name@pve format"
-                            Text="{x:Bind ViewModel.UserId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <PasswordBox x:Name="PasswordBox" 
-                               Header="Password"
-                               Password="{x:Bind ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+        <!-- Header bar -->
+        <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Padding="24,16">
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Width="36" Height="36" CornerRadius="8"
+                        Background="{ThemeResource AccentButtonBackground}">
+                    <FontIcon Glyph="&#xE77B;" FontSize="18"
+                              FontFamily="Segoe Fluent Icons"
+                              Foreground="White"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Create New User"
+                               Style="{ThemeResource SubtitleTextBlockStyle}"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="Add a Proxmox user account"
+                               Style="{ThemeResource CaptionTextBlockStyle}"
+                               Opacity="0.6"/>
                 </StackPanel>
+            </StackPanel>
+        </Border>
 
-                <!-- Personal Information -->
-                <StackPanel >
-                    <TextBlock Text="Personal Information" 
-                             Style="{StaticResource SubtitleTextBlockStyle}" 
-                             Margin="0,0,0,8"/>
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollMode="Auto"
+                      VerticalScrollBarVisibility="Auto"
+                      Padding="20">
+            <StackPanel Spacing="12">
 
-                    <TextBox x:Name="FirstNameTextBox" 
-                            Header="First Name"
-                            Text="{x:Bind ViewModel.FirstName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <!-- Error InfoBar -->
+                <InfoBar x:Name="ErrorInfoBar"
+                         IsOpen="False"
+                         Severity="Error"
+                         Title="Error"
+                         Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"
+                         IsClosable="True"/>
 
-                    <TextBox x:Name="LastNameTextBox" 
-                            Header="Last Name"
-                            Text="{x:Bind ViewModel.LastName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                <!-- Required Information Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE72E;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Required Information"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <TextBox x:Name="UserIdTextBox"
+                                 Header="User ID"
+                                 PlaceholderText="username@pve"
+                                 HorizontalAlignment="Stretch"
+                                 Text="{x:Bind ViewModel.UserId, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <PasswordBox x:Name="PasswordBox"
+                                     Header="Password"
+                                     PlaceholderText="Enter a secure password"
+                                     HorizontalAlignment="Stretch"
+                                     Password="{x:Bind ViewModel.Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Border>
 
-                    <TextBox x:Name="EmailTextBox" 
-                            Header="Email"
-                            PlaceholderText="Enter email address"
-                            Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
+                <!-- Personal Information Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE77B;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Personal Information"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <Grid ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox x:Name="FirstNameTextBox"
+                                     Header="First Name"
+                                     PlaceholderText="First name"
+                                     HorizontalAlignment="Stretch"
+                                     Text="{x:Bind ViewModel.FirstName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <TextBox x:Name="LastNameTextBox"
+                                     Grid.Column="1"
+                                     Header="Last Name"
+                                     PlaceholderText="Last name"
+                                     HorizontalAlignment="Stretch"
+                                     Text="{x:Bind ViewModel.LastName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Grid>
+                        <TextBox x:Name="EmailTextBox"
+                                 Header="Email Address"
+                                 PlaceholderText="user@example.com"
+                                 HorizontalAlignment="Stretch"
+                                 Text="{x:Bind ViewModel.Email, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Border>
 
-                <!-- Account Settings -->
-                <StackPanel >
-                    <TextBlock Text="Account Settings" 
-                             Style="{StaticResource SubtitleTextBlockStyle}" 
-                             Margin="0,0,0,8"/>
+                <!-- Account Settings Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE713;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Account Settings"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <ToggleSwitch x:Name="EnableToggle"
+                                      Header="Account Status"
+                                      OnContent="Enabled"
+                                      OffContent="Disabled"
+                                      IsOn="{x:Bind ViewModel.IsEnabled, Mode=TwoWay}"/>
+                        <CalendarDatePicker x:Name="ExpiryDatePicker"
+                                            Header="Account Expiry Date"
+                                            PlaceholderText="No expiry"
+                                            HorizontalAlignment="Stretch"
+                                            Date="{x:Bind ViewModel.ExpiryDate, Mode=TwoWay}"/>
+                    </StackPanel>
+                </Border>
 
-                    <ToggleSwitch x:Name="EnableToggle" 
-                                 Header="Account Status"
-                                 OnContent="Enabled"
-                                 OffContent="Disabled"
-                                 IsOn="{x:Bind ViewModel.IsEnabled, Mode=TwoWay}"/>
+                <!-- Group Membership Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE902;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Group Membership"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <ComboBox x:Name="GroupComboBox"
+                                  PlaceholderText="Select a group (optional)"
+                                  ItemsSource="{x:Bind ViewModel.AvailableGroups, Mode=OneWay}"
+                                  SelectedItem="{x:Bind ViewModel.SelectedGroup, Mode=TwoWay}"
+                                  HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                </Border>
 
-                    <CalendarDatePicker x:Name="ExpiryDatePicker" 
-                                      Header="Account Expiry Date"
-                                      Date="{x:Bind ViewModel.ExpiryDate, Mode=TwoWay}"/>
-                </StackPanel>
+                <!-- Additional Settings Card -->
+                <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE90F;" FontSize="16"
+                                      FontFamily="Segoe Fluent Icons"
+                                      Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="Additional Settings"
+                                       Style="{ThemeResource BodyStrongTextBlockStyle}"/>
+                        </StackPanel>
+                        <TextBox x:Name="CommentTextBox"
+                                 Header="Comment"
+                                 PlaceholderText="Notes about this user"
+                                 TextWrapping="Wrap"
+                                 AcceptsReturn="True"
+                                 MinHeight="60"
+                                 HorizontalAlignment="Stretch"
+                                 Text="{x:Bind ViewModel.Comment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBox x:Name="KeysTextBox"
+                                 Header="Two-Factor Auth Keys (YubiKey)"
+                                 PlaceholderText="Enter authentication keys"
+                                 HorizontalAlignment="Stretch"
+                                 Text="{x:Bind ViewModel.Keys, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+                </Border>
 
-                <!-- Groups -->
-                <StackPanel>
-                    <TextBlock Text="Group Membership" 
-               Style="{StaticResource SubtitleTextBlockStyle}" 
-               Margin="0,0,0,8"/>
-                    <ComboBox x:Name="GroupComboBox"
-              PlaceholderText="Select a group"
-              ItemsSource="{x:Bind ViewModel.AvailableGroups, Mode=OneWay}"
-              SelectedItem="{x:Bind ViewModel.SelectedGroup, Mode=TwoWay}"
-              HorizontalAlignment="Stretch"
-              Margin="0,0,0,16"/>
-                </StackPanel>
-
-                <!-- Additional Settings -->
-                <StackPanel >
-                    <TextBlock Text="Additional Settings" 
-                             Style="{StaticResource SubtitleTextBlockStyle}" 
-                             Margin="0,0,0,8"/>
-
-                    <TextBox x:Name="CommentTextBox" 
-                            Header="Comment"
-                            PlaceholderText="Add a comment about this user"
-                            TextWrapping="Wrap"
-                            AcceptsReturn="True"
-                            Height="60"
-                            Text="{x:Bind ViewModel.Comment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-
-                    <TextBox x:Name="KeysTextBox" 
-                            Header="Two Factor Auth Keys (Yubico)"
-                            PlaceholderText="Enter keys for two factor authentication"
-                            Text="{x:Bind ViewModel.Keys, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
-        <!-- Action Buttons -->
-        <StackPanel Grid.Row="2" 
-                    Orientation="Horizontal" 
-                    HorizontalAlignment="Right" 
-                    Spacing="8" 
-                    Margin="0,16,0,0">
-            <Button x:Name="CancelButton" 
-                    Content="Cancel"
-                    Style="{StaticResource AccentButtonStyle}"
-                    Click="CancelButton_Click"/>
-
-            <Button x:Name="CreateButton" 
-                    Content="Create User"
-                    Style="{StaticResource AccentButtonStyle}"
-                    Click="CreateButton_Click"/>
-        </StackPanel>
-
-        <!-- Error Info Bar -->
-        <InfoBar Grid.Row="2"
-                 x:Name="ErrorInfoBar"
-                 IsOpen="False"
-                 Severity="Error"
-                 Title="Error"
-                 Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}"/>
+        <!-- Footer actions -->
+        <Border Grid.Row="2"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="20,12">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                <Button x:Name="CancelButton"
+                        Content="Cancel"
+                        Click="CancelButton_Click"
+                        MinWidth="80"/>
+                <Button x:Name="CreateButton"
+                        Content="Create User"
+                        Click="CreateButton_Click"
+                        Style="{ThemeResource AccentButtonStyle}"
+                        MinWidth="120"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

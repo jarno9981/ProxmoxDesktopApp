@@ -7,28 +7,71 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="AddPoolWindow">
-
+    Title="Create Resource Pool">
 
     <Window.SystemBackdrop>
         <MicaBackdrop Kind="BaseAlt"/>
     </Window.SystemBackdrop>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <Grid>
+        <Border MaxWidth="480"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Margin="24"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="32,28">
+            <StackPanel Spacing="0">
 
-        <TextBlock Text="Pool ID:" Grid.Row="0" Margin="0,0,0,5"/>
-        <TextBox x:Name="PoolIdTextBox" Grid.Row="1" Margin="0,0,0,10"/>
+                <!-- Header -->
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,24">
+                    <Border Width="40" Height="40" CornerRadius="10"
+                            Background="{ThemeResource AccentButtonBackground}">
+                        <FontIcon Glyph="&#xE8B8;" FontSize="20"
+                                  FontFamily="Segoe Fluent Icons"
+                                  Foreground="White"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
+                    </Border>
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="Create Resource Pool"
+                                   Style="{ThemeResource SubtitleTextBlockStyle}"
+                                   FontWeight="SemiBold"/>
+                        <TextBlock Text="Add a new pool to organize resources"
+                                   Style="{ThemeResource CaptionTextBlockStyle}"
+                                   Opacity="0.6"/>
+                    </StackPanel>
+                </StackPanel>
 
-        <TextBlock Text="Comment (Optional):" Grid.Row="2" Margin="0,0,0,5"/>
-        <TextBox x:Name="CommentTextBox" Grid.Row="3" Margin="0,0,0,10" AcceptsReturn="True" TextWrapping="Wrap"/>
+                <!-- Pool ID -->
+                <TextBox x:Name="PoolIdTextBox"
+                         Header="Pool ID"
+                         PlaceholderText="Enter pool identifier"
+                         HorizontalAlignment="Stretch"
+                         Margin="0,0,0,12"/>
 
-        <Button Content="Create Pool" Grid.Row="4" HorizontalAlignment="Right" Click="CreatePoolButton_Click"/>
+                <!-- Comment -->
+                <TextBox x:Name="CommentTextBox"
+                         Header="Comment (optional)"
+                         PlaceholderText="Add a description for this pool"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         MinHeight="80"
+                         HorizontalAlignment="Stretch"
+                         Margin="0,0,0,24"/>
+
+                <!-- Actions -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+                    <Button Content="Cancel" Click="CancelButton_Click" Width="80"/>
+                    <Button Content="Create Pool"
+                            Click="CreatePoolButton_Click"
+                            Style="{ThemeResource AccentButtonStyle}"
+                            MinWidth="110"/>
+                </StackPanel>
+
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>

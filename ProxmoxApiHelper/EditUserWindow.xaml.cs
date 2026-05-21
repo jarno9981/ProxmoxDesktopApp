@@ -187,6 +187,11 @@ namespace ProxmoxApiHelper
 
 
 
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
         private async void SaveButton_Click(object sender, RoutedEventArgs e)
         {
             try

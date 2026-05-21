@@ -60,6 +60,11 @@ namespace ProxmoxApiHelper
             appWindow.Resize(new SizeInt32(width, height));
         }
 
+        private void CancelButton_Click(object sender, RoutedEventArgs e)
+        {
+            this.Close();
+        }
+
         private async void CreatePoolButton_Click(object sender, RoutedEventArgs e)
         {
             string poolId = PoolIdTextBox.Text.Trim();
