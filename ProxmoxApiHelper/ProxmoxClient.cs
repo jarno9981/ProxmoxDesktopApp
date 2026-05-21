@@ -3276,6 +3276,9 @@ namespace ProxmoxApiHelper
             catch { return new Dictionary<string, object>(); }
         }
 
+        // Returns the PVEAuthCookie value so callers (e.g. WebView2) can inject it
+        public string GetAuthCookie() => _authToken;
+
         public void Dispose()
         {
             if (_disposed) return;
